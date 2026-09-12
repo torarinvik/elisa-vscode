@@ -6,7 +6,7 @@
       "ES2022"
     ],
     "rootDir": "src",
-    "outDir": "dist",
+    "outDir": "out",
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,

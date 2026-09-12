@@ -18,13 +18,7 @@
   "contributes": {
     "configurationDefaults": {
       "[elisa]": {
-        "editor.semanticHighlighting.enabled": true,
-        "editor.semanticTokenColorCustomizations": {
-          "rules": {
-            "elisa.type.user": "#267F99",
-            "elisa.enum.variant": "#8250DF"
-          }
-        }
+        "editor.semanticHighlighting.enabled": true
       }
     },
     "languages": [
@@ -87,11 +81,6 @@
         "id": "elisa.type.void",
         "superType": "type",
         "description": "Void type"
-      },
-      {
-        "id": "elisa.enum.variant",
-        "superType": "enumMember",
-        "description": "Enum variant"
       },
       {
         "id": "elisa.lit.int",
@@ -287,6 +276,11 @@
         "id": "elisa.op.assign",
         "superType": "operator",
         "description": "Assignment operator"
+      },
+      {
+        "id": "elisa.enum.variant",
+        "superType": "enumMember",
+        "description": "Enum variant"
       }
     ],
     "semanticTokenScopes": [
@@ -300,9 +294,6 @@
           "elisa.type.container": "storage.type",
           "elisa.type.user": [
             "entity.name.type"
-          ],
-          "elisa.enum.variant": [
-            "variable.other.enummember"
           ],
           "elisa.type.void": "storage.type",
           "elisa.lit.int": "constant.numeric",
@@ -343,8 +334,43 @@
           "elisa.op.comparison": "keyword.operator.comparison",
           "elisa.op.logical": "keyword.operator.logical",
           "elisa.op.bitwise": "keyword.operator.bitwise",
-          "elisa.op.assign": "keyword.operator.assignment"
+          "elisa.op.assign": "keyword.operator.assignment",
+          "elisa.enum.variant": [
+            "variable.other.enummember"
+          ]
         }
+      }
+    ],
+    "commands": [
+      {
+        "command": "elisa.restartLanguageServer",
+        "title": "Restart Language Server",
+        "category": "Elisa"
+      },
+      {
+        "command": "elisa.showLanguageServerOutput",
+        "title": "Show Language Server Output",
+        "category": "Elisa"
+      },
+      {
+        "command": "elisa.showHealthReport",
+        "title": "Show Health Report",
+        "category": "Elisa"
+      },
+      {
+        "command": "elisa.configureLanguageServer",
+        "title": "Configure Language Server",
+        "category": "Elisa"
+      },
+      {
+        "command": "elisa.explainHighlighting",
+        "title": "Explain Highlighting",
+        "category": "Elisa"
+      },
+      {
+        "command": "elisa.collectSupportReport",
+        "title": "Collect Support Report",
+        "category": "Elisa"
       }
     ],
     "configuration": {
@@ -353,17 +379,20 @@
         "elisa.languageServer.path": {
           "type": "string",
           "default": "",
-          "description": "Absolute path to the elisa-lsp executable. If empty, the extension checks the sibling Elisa-LSP build and then PATH."
+          "scope": "machine-overridable",
+          "description": "Path to the elisa-lsp executable. Supports an absolute path, a path relative to the first workspace folder, or a leading ~ for the home directory. When empty, the extension checks ELISA_LSP, a nearby Elisa-LSP build (trusted workspaces only), and PATH."
         }
       }
     }
   },
   "scripts": {
-    "compile": "tsc -p ./ && esbuild dist/extension.js --bundle --platform=node --target=node18 --external:vscode --outfile=dist/extension.js --sourcemap=external --allow-overwrite",
+    "compile": "node scripts/build.mjs",
     "check": "tsc --noEmit -p ./",
-    "watch": "tsc --watch -p ./",
+    "watch": "node scripts/build.mjs --watch",
     "package": "npm run compile && vsce package",
-    "test": "npm run check && node --test"
+    "test": "npm run compile && node --test",
+    "smoke:vsix": "node scripts/smoke/vsix-smoke.mjs",
+    "audit:vsix": "node scripts/smoke/vsix-audit.mjs"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -373,6 +402,8 @@
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.28.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   }
 }

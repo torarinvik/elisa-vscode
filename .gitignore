@@ -1,4 +1,6 @@
 node_modules/
 dist/
+out/
 *.vsix
 .DS_Store
+IMPLEMENTATION_PLAN.md

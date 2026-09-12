@@ -1,0 +1,30 @@
+enum Event:
+    None
+    Quit
+    Resize(size: Size)
+
+enum PointerEvent is InputEvent:
+    Move(at: Vec2)
+
+def consume(event: Event) -> i32:
+    match event:
+        Event.None:
+            return 0
+        Event.Resize(size):
+            return 1
+
+def call_tool():
+    raw.UiKey()
+    tool.Method(1)
+    return 0
+
+struct Vec2:
+    x: i32
+    y: i32
+
+struct Size:
+    width: i32
+    height: i32
+
+struct InputEvent:
+    kind: i32

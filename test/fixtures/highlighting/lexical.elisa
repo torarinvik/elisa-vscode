@@ -1,0 +1,22 @@
+# Comment with Event.None and "quoted text" inside.
+const enum Mode:
+    Fast
+    Slow
+
+const LIMIT: i64 = 0x1F_FF
+const FLAG: u8 = 0b1010
+const OCT: u8 = 0o17
+
+def lexical(name: i64, b: i64) -> i64:
+    msg: dstr = f"hi {name}!"
+    two: dstr = f"{{x}} {name} {b}"
+    plain: dstr = "a \"quoted\" value"
+    char: char = 'x'
+    range: i64 = 0..<10
+    closed: i64 = 0..10
+    shifted: i64 = name << 2
+    compared: bool = name <= b
+    return name
+
+def mapped(x: i64) -> i64:
+    return x
