@@ -61,6 +61,36 @@ test("enum family declarations and variants receive exact lexical scopes", () =>
   );
 });
 
+test("multiline payload lists and payload-free variants stay in enum context", () => {
+  const tokens = tokenizeFile(grammar, fixtureText("enum-multiline.elisa"));
+  assert.ok(
+    hasScope(tokenAt(tokens[1], "Single"), "variable.other.enummember"),
+    "payload-free variant is an enum member",
+  );
+  assert.ok(
+    hasScope(tokenAt(tokens[2], "Pair"), "variable.other.enummember"),
+    "multiline variant head is an enum member",
+  );
+  for (const [line, field] of [
+    [3, "first"],
+    [4, "second"],
+  ]) {
+    assert.equal(
+      hasScope(tokenAt(tokens[line], field), "variable.other.enummember"),
+      false,
+      `payload field ${field} is not an enum member`,
+    );
+    assert.ok(
+      hasScope(tokenAt(tokens[line], "i32"), "storage.type.primitive"),
+      `payload field type ${field} keeps its primitive scope`,
+    );
+  }
+  assert.ok(
+    hasScope(tokenAt(tokens[8], "Read"), "variable.other.enummember"),
+    "variant before a discriminant is an enum member",
+  );
+});
+
 test("unrelated dotted PascalCase is never classified as an enum variant", () => {
   const tokens = tokenizeFile(grammar, fixtureText("enum-family.elisa"));
 

@@ -1,0 +1,11 @@
+enum Layout:
+    Single
+    Pair(
+        first: i32,
+        second: i32,
+    )
+
+enum Flags:
+    Read
+    Write
+    Execute = 4
