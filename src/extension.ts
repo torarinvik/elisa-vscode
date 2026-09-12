@@ -419,6 +419,19 @@ async function collectSupportReport(state: Runtime): Promise<void> {
   }
 }
 
+async function reportRestartOutcome(state: Runtime): Promise<void> {
+  const sessionState = state.session.state;
+  if (sessionState === "ready" || sessionState === "degraded") {
+    state.output.appendLine(`[restart] language server state: ${sessionState}`);
+    return;
+  }
+  const failure = state.session.lastFailure;
+  const message = failure
+    ? `${failure.message}${failure.detail ? `: ${failure.detail}` : ""}`
+    : `state ${sessionState}`;
+  void vscode.window.showWarningMessage(`Elisa language server did not become ready: ${message}`);
+}
+
 async function showHealth(state: Runtime): Promise<void> {
   const report = formatHealthReport(healthSnapshot(state), {
     homeDirectory: os.homedir(),
@@ -477,6 +490,7 @@ export function activate(context: vscode.ExtensionContext): void {
     restartLanguageServer: async () => {
       output.appendLine("[command] restarting language server");
       await session.restart();
+      await reportRestartOutcome(state);
     },
     showLanguageServerOutput: () => {
       output.show(true);
@@ -503,7 +517,10 @@ export function activate(context: vscode.ExtensionContext): void {
         state.settings = next;
         if (change === "session-restart") {
           cache.clear();
-          void session.restart();
+          output.appendLine(
+            "[config] elisa.languageServer.path changed; restarting the language server",
+          );
+          void session.restart().then(() => reportRestartOutcome(state));
         }
       }, 300);
     }),

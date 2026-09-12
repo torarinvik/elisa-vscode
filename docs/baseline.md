@@ -33,9 +33,11 @@ cd ../Elisa-LSP && bash build.sh && bash test/run_all.sh
 
 ## Results after the first implementation pass
 
-- `elisa-vscode`: **55 tests passing**, including real TextMate tokenization through
-  `vscode-textmate` and `vscode-oniguruma`, discovery precedence, lifecycle races,
-  configuration classification, and health-report redaction.
+- `elisa-vscode`: **55 tests passing** at the first commit, growing to **69** with
+  compatibility checks, seeded grammar fuzzing, hostile-input bounds, a 200-cycle soak,
+  and a compiler-backed enum golden test. Coverage includes real TextMate tokenization
+  through `vscode-textmate` and `vscode-oniguruma`, discovery precedence, lifecycle
+  races, configuration classification, taxonomy validation, and health-report redaction.
 - `npm run audit:vsix`: 6 packaged entries, no leaked build inputs or source maps.
 - `npm run smoke:vsix`: VSIX packaged successfully; isolated install **skipped with
   reason** because no VS Code CLI (`code`) was available on this machine. Set
