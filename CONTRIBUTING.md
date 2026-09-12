@@ -68,6 +68,14 @@ declares the same ids in the same order in `package.json`; the manifest test fai
 drift or on any supertype outside the VS Code standard set. Custom `elisa.*` types must
 justify why a standard category is insufficient and must keep a theme-reachable fallback.
 
+## User-facing text
+
+Manifest strings (display name, command titles, setting labels, descriptions) live in
+`package.nls.json` and are referenced from `package.json` as `%key%`. The localization
+test fails if a key is undefined, empty, or unused. Runtime notification and dialog text
+lives in `src/messages.ts` so it is centralized before a translation workflow exists; do
+not add new user-facing literals directly to `extension.ts`.
+
 ## Performance harness
 
 Performance work follows the implementation plan's measurement contract: named reference

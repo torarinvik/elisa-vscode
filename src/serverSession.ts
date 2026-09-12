@@ -1,3 +1,4 @@
+import { messages } from "./messages";
 import type { DiscoveryOutcome, ServerResolution } from "./serverDiscovery";
 
 export type SessionState =
@@ -187,7 +188,7 @@ export class ServerSession {
     try {
       outcome = await this.hooks.discover();
     } catch (error) {
-      this.fail("discovery", "Language server discovery failed", error);
+      this.fail("discovery", messages.session.discoveryFailed, error);
       return;
     }
 
@@ -199,7 +200,7 @@ export class ServerSession {
     if (outcome.kind === "invalid-explicit") {
       this.fail(
         "invalid-configuration",
-        `${outcome.setting} points to a unusable language server`,
+        messages.session.invalidSetting(outcome.setting),
         `${outcome.candidate.path} (${outcome.status}${outcome.detail ? `: ${outcome.detail}` : ""})`,
       );
       return;
@@ -208,8 +209,8 @@ export class ServerSession {
     if (outcome.kind === "missing") {
       this.fail(
         "missing-server",
-        "No Elisa language server was found",
-        "Build Elisa-LSP or configure elisa.languageServer.path",
+        messages.session.missingServer,
+        messages.session.missingServerDetail,
       );
       return;
     }
@@ -221,7 +222,11 @@ export class ServerSession {
       connection = await this.hooks.connect(outcome.server);
     } catch (error) {
       const phase = error instanceof SessionConnectError ? error.phase : "initialization";
-      this.fail(phase, `Language server failed to ${phase}`, error);
+      this.fail(
+        phase,
+        phase === "spawn" ? messages.session.spawnFailed : messages.session.initializationFailed,
+        error,
+      );
       return;
     }
 
@@ -279,7 +284,7 @@ export class ServerSession {
     this.connectionListener = undefined;
     this.connection = undefined;
     this.cancelStability();
-    this.recordFailure("crash", "Language server exited unexpectedly");
+    this.recordFailure("crash", messages.session.crashed);
     this.scheduleRestart();
   }
 
@@ -290,7 +295,7 @@ export class ServerSession {
     if (this.retries >= this.policy.maxRetries) {
       this.recordFailure(
         "retries-exhausted",
-        `Language server crashed ${this.policy.maxRetries} times; automatic restart disabled`,
+        messages.session.retriesExhausted(this.policy.maxRetries),
       );
       this.transition("failed");
       return;

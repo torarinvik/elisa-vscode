@@ -19,6 +19,7 @@ import {
 import { commandIds } from "./commandIds";
 import { registerCommands } from "./commands";
 import { compareLegends, describeLegendComparison } from "./compatibility";
+import { messages } from "./messages";
 import { formatHealthReport, type HealthSnapshot } from "./health";
 import {
   DiscoveryCache,
@@ -49,14 +50,14 @@ const languageSelector = [
 const configurationSection = "elisa.languageServer";
 
 const statusPresentation: Record<SessionState, { icon: string; tooltip: string }> = {
-  inactive: { icon: "$(circle-outline)", tooltip: "Elisa: inactive" },
-  resolving: { icon: "$(search)", tooltip: "Elisa: locating language server" },
-  starting: { icon: "$(sync~spin)", tooltip: "Elisa: starting language server" },
-  ready: { icon: "$(check)", tooltip: "Elisa: language server ready" },
-  degraded: { icon: "$(warning)", tooltip: "Elisa: language server degraded" },
-  stopping: { icon: "$(circle-slash)", tooltip: "Elisa: stopping language server" },
-  stopped: { icon: "$(circle-outline)", tooltip: "Elisa: language server stopped" },
-  failed: { icon: "$(error)", tooltip: "Elisa: language server unavailable" },
+  inactive: { icon: "$(circle-outline)", tooltip: messages.status.inactive },
+  resolving: { icon: "$(search)", tooltip: messages.status.resolving },
+  starting: { icon: "$(sync~spin)", tooltip: messages.status.starting },
+  ready: { icon: "$(check)", tooltip: messages.status.ready },
+  degraded: { icon: "$(warning)", tooltip: messages.status.degraded },
+  stopping: { icon: "$(circle-slash)", tooltip: messages.status.stopping },
+  stopped: { icon: "$(circle-outline)", tooltip: messages.status.stopped },
+  failed: { icon: "$(error)", tooltip: messages.status.failed },
 };
 
 interface RuntimeServices {
@@ -93,7 +94,9 @@ function readSettings(): ParsedSettings {
     trace: traceConfiguration.get("server"),
   });
   for (const diagnostic of parsed.diagnostics) {
-    void vscode.window.showWarningMessage(`Elisa setting ${diagnostic.key} ${diagnostic.message}.`);
+    void vscode.window.showWarningMessage(
+      messages.invalidSetting(diagnostic.key, diagnostic.message),
+    );
   }
   return parsed;
 }
@@ -213,12 +216,9 @@ function applyTrace(state: Runtime): void {
 
 function offerTraceConsent(state: Runtime): void {
   void vscode.window
-    .showWarningMessage(
-      "Elisa protocol tracing may include source code. Enable it only for temporary diagnostics and disable it when finished.",
-      "Show Trace Output",
-    )
+    .showWarningMessage(messages.traceWarning, messages.traceShowAction)
     .then((action) => {
-      if (action === "Show Trace Output") {
+      if (action === messages.traceShowAction) {
         state.traceChannel.show(true);
       }
       return undefined;
@@ -404,25 +404,25 @@ async function promptMissingServer(state: Runtime, failure: SessionFailure): Pro
   state.lastNotifiedFailure = key;
   const action = await vscode.window.showErrorMessage(
     `${failure.message}. ${failure.detail ?? ""}`.trim(),
-    "Open Setting",
-    "Select Executable",
-    "Setup Guide",
-    "Show Discovery Report",
+    messages.setupActions.openSetting,
+    messages.setupActions.selectExecutable,
+    messages.setupActions.setupGuide,
+    messages.setupActions.discoveryReport,
   );
   switch (action) {
-    case "Open Setting":
+    case messages.setupActions.openSetting:
       await vscode.commands.executeCommand(
         "workbench.action.openSettings",
         "elisa.languageServer.path",
       );
       break;
-    case "Select Executable":
+    case messages.setupActions.selectExecutable:
       await state.services.configure();
       break;
-    case "Setup Guide":
+    case messages.setupActions.setupGuide:
       await openExtensionDocument(state.context, "docs/setting-up.md");
       break;
-    case "Show Discovery Report":
+    case messages.setupActions.discoveryReport:
       await state.services.health();
       break;
     default:
@@ -434,8 +434,8 @@ async function configureServer(state: Runtime): Promise<void> {
   const picked = await vscode.window.showOpenDialog({
     canSelectMany: false,
     canSelectFolders: false,
-    openLabel: "Select server executable",
-    title: "Select the Elisa language server executable",
+    openLabel: messages.configure.openLabel,
+    title: messages.configure.title,
   });
   const selection = picked?.[0];
   if (!selection) {
@@ -449,7 +449,7 @@ async function configureServer(state: Runtime): Promise<void> {
   const probe = await new NodeFileProbe().probeFile(candidate, process.platform);
   if (probe.status !== "ok") {
     await vscode.window.showErrorMessage(
-      `The selected file is ${describeStatus(probe)}: ${selection.fsPath}`,
+      messages.configure.rejected(describeStatus(probe), selection.fsPath),
     );
     return;
   }
@@ -457,13 +457,15 @@ async function configureServer(state: Runtime): Promise<void> {
   const target = hasWorkspace
     ? vscode.ConfigurationTarget.Workspace
     : vscode.ConfigurationTarget.Global;
-  const targetLabel = hasWorkspace ? "this workspace's settings" : "your user settings";
+  const targetLabel = hasWorkspace
+    ? messages.configure.workspaceTarget
+    : messages.configure.userTarget;
   const confirmed = await vscode.window.showInformationMessage(
-    `Write elisa.languageServer.path to ${targetLabel}?`,
+    messages.configure.confirm(targetLabel),
     { modal: true },
-    "Write Setting",
+    messages.configure.confirmAction,
   );
-  if (confirmed !== "Write Setting") {
+  if (confirmed !== messages.configure.confirmAction) {
     return;
   }
   await vscode.workspace
@@ -473,13 +475,13 @@ async function configureServer(state: Runtime): Promise<void> {
 
 async function explainHighlighting(state: Runtime): Promise<void> {
   const action = await vscode.window.showInformationMessage(
-    "Elisa highlighting has two layers: TextMate lexical scopes (always available) and semantic tokens (available once the language server is ready).",
-    "Open Highlighting Guide",
-    "Show Health Report",
+    messages.explain.text,
+    messages.explain.guideAction,
+    messages.explain.healthAction,
   );
-  if (action === "Open Highlighting Guide") {
+  if (action === messages.explain.guideAction) {
     await openExtensionDocument(state.context, "docs/highlighting.md");
-  } else if (action === "Show Health Report") {
+  } else if (action === messages.explain.healthAction) {
     await showHealth(state);
   }
 }
@@ -491,12 +493,12 @@ async function collectSupportReport(state: Runtime): Promise<void> {
   });
   const document = await showDocument(report, "markdown");
   const action = await vscode.window.showInformationMessage(
-    "Support report preview opened. Review it before sharing; nothing is uploaded automatically.",
-    "Copy to Clipboard",
+    messages.support.opened,
+    messages.support.copyAction,
   );
-  if (action === "Copy to Clipboard") {
+  if (action === messages.support.copyAction) {
     await vscode.env.clipboard.writeText(document.getText());
-    await vscode.window.showInformationMessage("Elisa support report copied to the clipboard.");
+    await vscode.window.showInformationMessage(messages.support.copied);
   }
 }
 
@@ -510,7 +512,7 @@ async function reportRestartOutcome(state: Runtime): Promise<void> {
   const message = failure
     ? `${failure.message}${failure.detail ? `: ${failure.detail}` : ""}`
     : `state ${sessionState}`;
-  void vscode.window.showWarningMessage(`Elisa language server did not become ready: ${message}`);
+  void vscode.window.showWarningMessage(messages.restartNotReady(message));
 }
 
 async function waitFor<T>(
@@ -605,9 +607,9 @@ async function showHealth(state: Runtime): Promise<void> {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  const output = vscode.window.createOutputChannel("Elisa Language Server");
+  const output = vscode.window.createOutputChannel(messages.serverOutputChannel);
   context.subscriptions.push(output);
-  const traceChannel = vscode.window.createOutputChannel("Elisa Language Server Trace");
+  const traceChannel = vscode.window.createOutputChannel(messages.traceOutputChannel);
   context.subscriptions.push(traceChannel);
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   status.command = commandIds.showHealthReport;
