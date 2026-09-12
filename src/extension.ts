@@ -1,8 +1,10 @@
 import * as os from "node:os";
 import * as vscode from "vscode";
 import {
+  HoverRequest,
   LanguageClient,
   LanguageClientOptions,
+  SemanticTokensRequest,
   ServerOptions,
   State,
   TransportKind,
@@ -510,6 +512,90 @@ async function reportRestartOutcome(state: Runtime): Promise<void> {
   void vscode.window.showWarningMessage(`Elisa language server did not become ready: ${message}`);
 }
 
+async function waitFor<T>(
+  operation: () => Promise<T | undefined>,
+  timeoutMs: number,
+  intervalMs: number,
+): Promise<T | undefined> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const value = await operation();
+      if (value !== undefined) {
+        return value;
+      }
+    } catch {
+      void 0;
+    }
+    if (Date.now() >= deadline) {
+      return undefined;
+    }
+    await new Promise<void>((resolveDelay) => setTimeout(resolveDelay, intervalMs));
+  }
+}
+
+async function verifySupport(state: Runtime): Promise<void> {
+  const snapshot = healthSnapshot(state);
+  const lines = [
+    formatHealthReport(snapshot, { homeDirectory: os.homedir() }),
+    "",
+    "## Live verification",
+  ];
+  const client = state.client;
+  if (!client || state.session.state !== "ready") {
+    lines.push("- Server requests: unavailable while the server is not ready");
+    await showDocument(lines.join("\n"), "markdown");
+    return;
+  }
+
+  const content = [
+    "enum Verify:",
+    "    Ok",
+    "",
+    "def check(xs: darray[i64]) -> i64:",
+    "    total: mutable i64 = 0",
+    "    r: i64 =",
+    "        for x in xs |acc = 0, total| -> acc:",
+    "            total <- total + x",
+    "            acc <- acc + 1",
+    "    return total + r",
+  ].join("\n");
+  const document = await vscode.workspace.openTextDocument({
+    language: "elisa",
+    content,
+  });
+  await vscode.window.showTextDocument(document, { preview: true });
+  const uri = document.uri.toString();
+
+  const tokens = await waitFor(
+    async () => {
+      const result = await client.sendRequest(SemanticTokensRequest.type, {
+        textDocument: { uri },
+      });
+      return result && result.data.length > 0 ? result : undefined;
+    },
+    3000,
+    150,
+  );
+  lines.push(
+    tokens
+      ? `- Semantic tokens: ${tokens.data.length / 5} spans returned for the verification document`
+      : "- Semantic tokens: none returned; the server may not advertise them",
+  );
+
+  const hover = await client.sendRequest(HoverRequest.type, {
+    textDocument: { uri },
+    position: new vscode.Position(6, 20),
+  });
+  lines.push(
+    hover
+      ? "- Hover: content returned for the loop-header capture list"
+      : "- Hover: no content returned at the hover position",
+  );
+
+  await showDocument(lines.join("\n"), "markdown");
+}
+
 async function showHealth(state: Runtime): Promise<void> {
   const report = formatHealthReport(healthSnapshot(state), {
     homeDirectory: os.homedir(),
@@ -577,6 +663,7 @@ export function activate(context: vscode.ExtensionContext): void {
       output.show(true);
     },
     showHealthReport: async () => showHealth(state),
+    verifySupport: async () => verifySupport(state),
     configureLanguageServer: async () => configureServer(state),
     explainHighlighting: async () => explainHighlighting(state),
     collectSupportReport: async () => collectSupportReport(state),

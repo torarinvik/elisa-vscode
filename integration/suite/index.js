@@ -7,6 +7,7 @@ const expectedCommands = [
   "elisa.restartLanguageServer",
   "elisa.showLanguageServerOutput",
   "elisa.showHealthReport",
+  "elisa.verifySupport",
   "elisa.configureLanguageServer",
   "elisa.explainHighlighting",
   "elisa.collectSupportReport",

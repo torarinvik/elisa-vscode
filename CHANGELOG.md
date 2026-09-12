@@ -8,7 +8,8 @@ measurement context, compatibility changes, and known limitations.
 ### New features
 
 - Commands: Restart Language Server, Show Language Server Output, Show Health Report,
-  Configure Language Server, Explain Highlighting, Collect Support Report.
+  Verify Support (live semantic-token and hover check), Configure Language Server,
+  Explain Highlighting, Collect Support Report.
 - A single quiet language-status item with lifecycle transitions and accessible text.
 - Opt-in protocol tracing via `elisa.trace.server` (`off`/`messages`/`verbose`) with a
   separate trace channel and a source-code warning; trace changes apply without a

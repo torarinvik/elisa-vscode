@@ -27,6 +27,7 @@ All commands live under the **Elisa** category in the Command Palette:
 | Elisa: Restart Language Server | Orderly, idempotent restart |
 | Elisa: Show Language Server Output | The extension's own lifecycle log |
 | Elisa: Show Health Report | Host, provenance, versions, state, capabilities |
+| Elisa: Verify Support | Runs a live semantic-token and hover check |
 | Elisa: Configure Language Server | Select and validate an executable |
 | Elisa: Explain Highlighting | Explain lexical vs semantic availability |
 | Elisa: Collect Support Report | Preview a bounded, redacted report |

@@ -59,9 +59,11 @@ bash test/run_all.sh
 ## 3. Verify support
 
 1. Open an `.elisa` file and confirm the language mode in the status bar says **Elisa**.
-2. Run **Elisa: Show Health Report**. It lists the server path source, lifecycle state,
-   negotiated encoding, and advertised capabilities.
-3. Hover a symbol and check that semantic tokens appear (for example `Event.Resize`).
+2. Run **Elisa: Verify Support**. It shows the server path source, lifecycle state,
+   negotiated encoding, advertised capabilities, and the result of a live semantic-token
+   and hover check against a scratch document.
+3. Hover a symbol in your own file and check that semantic tokens appear (for example
+   `Event.Resize`).
 4. If something is missing, run **Elisa: Show Language Server Output** and read the
    lifecycle log.
 

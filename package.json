@@ -366,6 +366,11 @@
         "category": "Elisa"
       },
       {
+        "command": "elisa.verifySupport",
+        "title": "Verify Support",
+        "category": "Elisa"
+      },
+      {
         "command": "elisa.configureLanguageServer",
         "title": "Configure Language Server",
         "category": "Elisa"
