@@ -15,6 +15,10 @@
 - Source-controlled files are never executed to determine language support.
 - Commands use direct process execution with argument arrays; the extension never
   constructs shell command strings from workspace or source content.
+- The language server inherits the extension host environment because Elisa toolchains
+  rely on variables such as `PATH` and compiler configuration. No additional environment
+  data is collected or forwarded beyond what the process inherits, and no environment
+  values are written to logs or reports.
 
 ## Untrusted content
 

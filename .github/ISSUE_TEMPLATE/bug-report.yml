@@ -1,0 +1,74 @@
+name: Bug report
+description: Report incorrect highlighting, lifecycle, discovery, or packaging behavior
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste proprietary source. Share a minimal reproduction instead. Redacted
+        logs only; use **Elisa: Collect Support Report** for the environment summary.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions and build identifier
+      description: Extension version and build identifier, VS Code version, server build identifier
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Editor host
+      options:
+        - Desktop
+        - Remote SSH / container / WSL
+        - Extension Development Host
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal source
+      description: Smallest Elisa snippet that shows the behavior
+      render: elisa
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen, and why (for example "Event.Resize is an enum member")
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Exact token, location, or lifecycle state observed
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Exact location or token
+      description: Line, column, and the token text or status bar state
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      description: Output from **Elisa: Show Language Server Output**
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I have redacted home paths, tokens, and private URLs
+          required: true
+        - label: I understand source sharing is optional and I did not include proprietary code
+          required: true

@@ -57,6 +57,13 @@ acceptable).
 
 **Consequences.** Startup stays simple and measured; conflicting roots can share
 semantics until routing exists. The compatibility page documents the limitation.
+Ownership is explicit: nested folders belong to the innermost containing root for future
+routing, a removed folder releases its documents to the single session, a file moved
+between roots keeps its open buffer and is re-localized after the move, untitled
+documents are owned by the session without a root, files outside every root are owned by
+the session but cannot use project context, and two roots referencing the same physical
+dependency share the session's analysis rather than duplicating it. None of these cases
+change the executable without an explicit settings change.
 
 **Revisit when.** The server supports the required workspace model and many-root
 measurements exist.

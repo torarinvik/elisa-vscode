@@ -50,13 +50,20 @@ test("every declared semantic token type has a standard superType and descriptio
   }
 });
 
-test("every declared semantic token type has a TextMate scope mapping", () => {
+test("every declared semantic token type has a well-shaped TextMate scope mapping", () => {
   const scopes = manifest.contributes.semanticTokenScopes;
   assert.equal(Array.isArray(scopes), true);
   assert.equal(scopes.length > 0, true);
   const mapping = scopes[0].scopes;
   for (const type of manifest.contributes.semanticTokenTypes) {
-    assert.ok(mapping[type.id] !== undefined, `${type.id} has a scope mapping`);
+    const value = mapping[type.id];
+    assert.ok(value !== undefined, `${type.id} has a scope mapping`);
+    const values = Array.isArray(value) ? value : [value];
+    assert.ok(values.length > 0, `${type.id} maps to at least one scope`);
+    for (const scope of values) {
+      assert.equal(typeof scope, "string", `${type.id} scope entries are strings`);
+      assert.match(scope, /^[a-z][a-z0-9.]*$/, `${type.id} scope ${scope} is well formed`);
+    }
   }
 });
 
