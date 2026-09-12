@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vsctm from "vscode-textmate";
 import {
   fixtureText,
   hasScope,
@@ -118,6 +119,52 @@ test("unrelated dotted PascalCase is never classified as an enum variant", () =>
     hasScope(tokenAt(tokens[17], "Method"), "variable.other.enummember"),
     false,
     "PascalCase method call is not an enum variant",
+  );
+});
+
+test("incremental retokenization carries and releases enum context", () => {
+  const header = grammar.tokenizeLine("enum Event:", vsctm.INITIAL);
+  const variantLine = "    Resize(size: Size)";
+  const variant = grammar.tokenizeLine(variantLine, header.ruleStack);
+  const variantToken = variant.tokens.find(
+    (token) => variantLine.slice(token.startIndex, token.endIndex) === "Resize",
+  );
+  assert.ok(
+    variantToken.scopes.some((scope) => scope.startsWith("variable.other.enummember")),
+    "a new variant tokenized with the enum rule stack stays an enum member",
+  );
+
+  const exitLine = "def helper():";
+  const exited = grammar.tokenizeLine(exitLine, header.ruleStack);
+  const defToken = exited.tokens.find(
+    (token) => exitLine.slice(token.startIndex, token.endIndex) === "def",
+  );
+  assert.ok(
+    defToken.scopes.some((scope) => scope.startsWith("storage.type.function")),
+    "a top-level declaration ends the enum context",
+  );
+
+  const bodyLine = "    Ok";
+  const body = grammar.tokenizeLine(bodyLine, exited.ruleStack);
+  assert.equal(
+    body.tokens.some((token) =>
+      token.scopes.some((scope) => scope.startsWith("variable.other.enummember")),
+    ),
+    false,
+    "enum context does not leak past the declaration that ended it",
+  );
+});
+
+test("incomplete qualified names never become enum members", () => {
+  const tokens = tokenizeFile(
+    grammar,
+    "enum Event:\n    None\n\ndef f(e: Event):\n    x: i64 = e.\n",
+  );
+  assert.equal(
+    tokens[4].some((token) =>
+      token.scopes.some((scope) => scope.startsWith("variable.other.enummember")),
+    ),
+    false,
   );
 });
 

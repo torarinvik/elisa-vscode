@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { commandIds } from "./commandIds";
 
 export interface CommandServices {
   restartLanguageServer(): Promise<void>;
@@ -9,16 +10,6 @@ export interface CommandServices {
   explainHighlighting(): Promise<void>;
   collectSupportReport(): Promise<void>;
 }
-
-export const commandIds = {
-  restartLanguageServer: "elisa.restartLanguageServer",
-  showLanguageServerOutput: "elisa.showLanguageServerOutput",
-  showHealthReport: "elisa.showHealthReport",
-  verifySupport: "elisa.verifySupport",
-  configureLanguageServer: "elisa.configureLanguageServer",
-  explainHighlighting: "elisa.explainHighlighting",
-  collectSupportReport: "elisa.collectSupportReport",
-} as const;
 
 export function registerCommands(
   context: vscode.ExtensionContext,

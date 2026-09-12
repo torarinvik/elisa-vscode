@@ -16,7 +16,8 @@ import {
   type ParsedSettings,
   type TraceLevel,
 } from "./config";
-import { commandIds, registerCommands } from "./commands";
+import { commandIds } from "./commandIds";
+import { registerCommands } from "./commands";
 import { compareLegends, describeLegendComparison } from "./compatibility";
 import { formatHealthReport, type HealthSnapshot } from "./health";
 import {
