@@ -1,7 +1,7 @@
 {
   "name": "elisa-vscode",
-  "displayName": "Elisa Language Support",
-  "description": "Correctness-first language support for the Elisa programming language.",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
   "version": "0.1.0",
   "publisher": "elisa-language",
   "license": "MIT",
@@ -352,48 +352,48 @@
     "commands": [
       {
         "command": "elisa.restartLanguageServer",
-        "title": "Restart Language Server",
+        "title": "%command.restartLanguageServer.title%",
         "category": "Elisa"
       },
       {
         "command": "elisa.showLanguageServerOutput",
-        "title": "Show Language Server Output",
+        "title": "%command.showLanguageServerOutput.title%",
         "category": "Elisa"
       },
       {
         "command": "elisa.showHealthReport",
-        "title": "Show Health Report",
+        "title": "%command.showHealthReport.title%",
         "category": "Elisa"
       },
       {
         "command": "elisa.verifySupport",
-        "title": "Verify Support",
+        "title": "%command.verifySupport.title%",
         "category": "Elisa"
       },
       {
         "command": "elisa.configureLanguageServer",
-        "title": "Configure Language Server",
+        "title": "%command.configureLanguageServer.title%",
         "category": "Elisa"
       },
       {
         "command": "elisa.explainHighlighting",
-        "title": "Explain Highlighting",
+        "title": "%command.explainHighlighting.title%",
         "category": "Elisa"
       },
       {
         "command": "elisa.collectSupportReport",
-        "title": "Collect Support Report",
+        "title": "%command.collectSupportReport.title%",
         "category": "Elisa"
       }
     ],
     "configuration": {
-      "title": "Elisa",
+      "title": "%configuration.title%",
       "properties": {
         "elisa.languageServer.path": {
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "description": "Path to the elisa-lsp executable. Supports an absolute path, a path relative to the first workspace folder, or a leading ~ for the home directory. When empty, the extension checks ELISA_LSP, a nearby Elisa-LSP build (trusted workspaces only), and PATH."
+          "description": "%configuration.languageServer.path.description%"
         },
         "elisa.trace.server": {
           "type": "string",
@@ -404,7 +404,7 @@
           ],
           "default": "off",
           "scope": "machine-overridable",
-          "description": "Protocol trace level for the Elisa language server. 'verbose' can include source code; enable only for temporary diagnostics and disable when finished."
+          "description": "%configuration.trace.server.description%"
         }
       }
     }

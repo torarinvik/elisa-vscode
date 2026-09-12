@@ -1,0 +1,14 @@
+{
+  "extension.displayName": "Elisa Language Support",
+  "extension.description": "Correctness-first language support for the Elisa programming language.",
+  "command.restartLanguageServer.title": "Restart Language Server",
+  "command.showLanguageServerOutput.title": "Show Language Server Output",
+  "command.showHealthReport.title": "Show Health Report",
+  "command.verifySupport.title": "Verify Support",
+  "command.configureLanguageServer.title": "Configure Language Server",
+  "command.explainHighlighting.title": "Explain Highlighting",
+  "command.collectSupportReport.title": "Collect Support Report",
+  "configuration.title": "Elisa",
+  "configuration.languageServer.path.description": "Path to the elisa-lsp executable. Supports an absolute path, a path relative to the first workspace folder, or a leading ~ for the home directory. When empty, the extension checks ELISA_LSP, a nearby Elisa-LSP build (trusted workspaces only), and PATH.",
+  "configuration.trace.server.description": "Protocol trace level for the Elisa language server. 'verbose' can include source code; enable only for temporary diagnostics and disable when finished."
+}

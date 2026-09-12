@@ -6,6 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const required = [
   "package.json",
+  "package.nls.json",
   "dist/extension.js",
   "language-configuration.json",
   "syntaxes/elisa.tmLanguage.json",
