@@ -228,6 +228,22 @@ test("overlapping operators prefer the longest match", () => {
   );
 });
 
+test("unicode identifiers follow the compiler's letter rules", () => {
+  const tokens = tokenizeFile(grammar, fixtureText("lexical.elisa"));
+  assert.ok(
+    hasScope(tokenAt(tokens[23], "élan"), "entity.name.function"),
+    "unicode function name is a declaration",
+  );
+  assert.ok(
+    hasScope(tokenAt(tokens[24], "café"), "variable.other"),
+    "unicode local binding is an identifier",
+  );
+  assert.ok(
+    hasScope(tokenAt(tokens[25], "return"), "keyword.control"),
+    "keywords adjacent to unicode identifiers stay keywords",
+  );
+});
+
 test("declaration names use distinct scopes", () => {
   const tokens = tokenizeFile(grammar, fixtureText("lexical.elisa"));
   assert.ok(

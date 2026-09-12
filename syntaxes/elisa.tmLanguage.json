@@ -46,7 +46,7 @@
     },
     {
       "name": "variable.other.elisa",
-      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+      "match": "(?<![\\p{L}\\p{N}_$])[\\p{L}_$][\\p{L}\\p{N}_$]*(?![\\p{L}\\p{N}_$])"
     }
   ],
   "repository": {
@@ -162,7 +162,7 @@
       ]
     },
     "enumBlock": {
-      "begin": "^([ \\t]*)(const[ \\t]+)?(enum)([ \\t]+)([A-Za-z_][A-Za-z0-9_]*)\\b",
+      "begin": "^([ \\t]*)(const[ \\t]+)?(enum)([ \\t]+)([\\p{L}_$][\\p{L}\\p{N}_$]*)\\b",
       "beginCaptures": {
         "2": {
           "name": "storage.type.declaration.elisa"
@@ -211,14 +211,14 @@
         },
         {
           "name": "variable.other.elisa",
-          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+          "match": "(?<![\\p{L}\\p{N}_$])[\\p{L}_$][\\p{L}\\p{N}_$]*(?![\\p{L}\\p{N}_$])"
         }
       ]
     },
     "variantDeclaration": {
       "patterns": [
         {
-          "match": "^([ \\t]+)([A-Z][A-Za-z0-9_]*)(?=[ \\t]*(?:\\(|:|$|,|=))",
+          "match": "^([ \\t]+)([\\p{Lu}][\\p{L}\\p{N}_$]*)(?=[ \\t]*(?:\\(|:|$|,|=))",
           "captures": {
             "2": {
               "name": "variable.other.enummember.elisa"
@@ -230,7 +230,7 @@
     "declarations": {
       "patterns": [
         {
-          "match": "\\b(export)[ \\t]+fn[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(export)[ \\t]+fn[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.modifier.export.elisa"
@@ -241,7 +241,7 @@
           }
         },
         {
-          "match": "\\b(extern)[ \\t]+fn[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(extern)[ \\t]+fn[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.modifier.extern.elisa"
@@ -252,7 +252,7 @@
           }
         },
         {
-          "match": "\\b(def|extern|fn)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(def|extern|fn)[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.type.function.elisa"
@@ -263,7 +263,7 @@
           }
         },
         {
-          "match": "\\b(struct)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(struct)[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.type.declaration.elisa"
@@ -274,7 +274,7 @@
           }
         },
         {
-          "match": "\\b(enum)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(enum)[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.type.declaration.elisa"
@@ -285,7 +285,7 @@
           }
         },
         {
-          "match": "\\b(type|alias|protocol|effect|permission|law)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(type|alias|protocol|effect|permission|law)[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.type.declaration.elisa"
@@ -296,7 +296,7 @@
           }
         },
         {
-          "match": "\\b(global|const)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(global|const)[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.modifier.binding.elisa"
@@ -307,7 +307,7 @@
           }
         },
         {
-          "match": "\\b(module)[ \\t]+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(module)[ \\t]+([\\p{L}_$][\\p{L}\\p{N}_$]*)",
           "captures": {
             "1": {
               "name": "storage.type.declaration.elisa"
@@ -322,7 +322,7 @@
     "moduleReferences": {
       "patterns": [
         {
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(::)",
+          "match": "\\b([\\p{L}_$][\\p{L}\\p{N}_$]*)(::)",
           "captures": {
             "1": {
               "name": "entity.name.namespace.elisa"
@@ -337,7 +337,7 @@
     "typeReferences": {
       "patterns": [
         {
-          "match": "(:|->|\\bas\\b|\\bis\\b)[ \\t]*([A-Z][A-Za-z0-9_]*)\\b",
+          "match": "(:|->|\\bas\\b|\\bis\\b)[ \\t]*([\\p{Lu}][\\p{L}\\p{N}_$]*)\\b",
           "captures": {
             "1": {
               "name": "punctuation.separator.type.elisa"
@@ -417,7 +417,7 @@
       "patterns": [
         {
           "name": "entity.name.function.decorator.elisa",
-          "match": "@[A-Za-z_][A-Za-z0-9_]*"
+          "match": "@[\\p{L}_$][\\p{L}\\p{N}_$]*"
         }
       ]
     },

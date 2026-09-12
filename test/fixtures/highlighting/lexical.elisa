@@ -20,3 +20,7 @@ def lexical(name: i64, b: i64) -> i64:
 
 def mapped(x: i64) -> i64:
     return x
+
+def élan(x: i32) -> i64:
+    café: i64 = x
+    return café
