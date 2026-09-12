@@ -1,0 +1,378 @@
+{
+  "name": "elisa-vscode",
+  "displayName": "Elisa Language Support",
+  "description": "Correctness-first language support for the Elisa programming language.",
+  "version": "0.1.0",
+  "publisher": "elisa-language",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:elisa"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configurationDefaults": {
+      "[elisa]": {
+        "editor.semanticHighlighting.enabled": true,
+        "editor.semanticTokenColorCustomizations": {
+          "rules": {
+            "elisa.type.user": "#267F99",
+            "elisa.enum.variant": "#8250DF"
+          }
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "elisa",
+        "aliases": [
+          "Elisa",
+          "elisa"
+        ],
+        "extensions": [
+          ".elisa"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "elisa",
+        "scopeName": "source.elisa",
+        "path": "./syntaxes/elisa.tmLanguage.json"
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "elisa.type.int.signed",
+        "superType": "type",
+        "description": "Signed integer type"
+      },
+      {
+        "id": "elisa.type.int.unsigned",
+        "superType": "type",
+        "description": "Unsigned integer type"
+      },
+      {
+        "id": "elisa.type.float",
+        "superType": "type",
+        "description": "Floating-point type"
+      },
+      {
+        "id": "elisa.type.scalar",
+        "superType": "type",
+        "description": "Scalar type"
+      },
+      {
+        "id": "elisa.type.string",
+        "superType": "type",
+        "description": "String type"
+      },
+      {
+        "id": "elisa.type.container",
+        "superType": "type",
+        "description": "Container type"
+      },
+      {
+        "id": "elisa.type.user",
+        "superType": "type",
+        "description": "User-defined type"
+      },
+      {
+        "id": "elisa.type.void",
+        "superType": "type",
+        "description": "Void type"
+      },
+      {
+        "id": "elisa.enum.variant",
+        "superType": "enumMember",
+        "description": "Enum variant"
+      },
+      {
+        "id": "elisa.lit.int",
+        "superType": "number",
+        "description": "Integer literal"
+      },
+      {
+        "id": "elisa.lit.float",
+        "superType": "number",
+        "description": "Floating-point literal"
+      },
+      {
+        "id": "elisa.lit.char",
+        "superType": "string",
+        "description": "Character literal"
+      },
+      {
+        "id": "elisa.lit.string",
+        "superType": "string",
+        "description": "String literal"
+      },
+      {
+        "id": "elisa.lit.value",
+        "superType": "variable",
+        "description": "Language literal value"
+      },
+      {
+        "id": "elisa.fn.def",
+        "superType": "function",
+        "description": "Function declaration"
+      },
+      {
+        "id": "elisa.fn.use",
+        "superType": "function",
+        "description": "Function use"
+      },
+      {
+        "id": "elisa.fn.lambda",
+        "superType": "function",
+        "description": "Lambda function"
+      },
+      {
+        "id": "elisa.bind.param",
+        "superType": "parameter",
+        "description": "Parameter binding"
+      },
+      {
+        "id": "elisa.bind.local",
+        "superType": "variable",
+        "description": "Local binding"
+      },
+      {
+        "id": "elisa.bind.field",
+        "superType": "property",
+        "description": "Field binding"
+      },
+      {
+        "id": "elisa.bind.global",
+        "superType": "variable",
+        "description": "Global binding"
+      },
+      {
+        "id": "elisa.bind.discard",
+        "superType": "variable",
+        "description": "Discard binding"
+      },
+      {
+        "id": "elisa.effect.grant",
+        "superType": "modifier",
+        "description": "Effect grant"
+      },
+      {
+        "id": "elisa.effect.name",
+        "superType": "modifier",
+        "description": "Effect name"
+      },
+      {
+        "id": "elisa.effect.unsafe",
+        "superType": "modifier",
+        "description": "Unsafe effect marker"
+      },
+      {
+        "id": "elisa.effect.error",
+        "superType": "modifier",
+        "description": "Error effect marker"
+      },
+      {
+        "id": "elisa.mem.region",
+        "superType": "modifier",
+        "description": "Memory region"
+      },
+      {
+        "id": "elisa.mem.qualifier",
+        "superType": "modifier",
+        "description": "Memory qualifier"
+      },
+      {
+        "id": "elisa.flow.branch",
+        "superType": "keyword",
+        "description": "Branch flow keyword"
+      },
+      {
+        "id": "elisa.flow.error",
+        "superType": "keyword",
+        "description": "Error flow keyword"
+      },
+      {
+        "id": "elisa.flow.concurrent",
+        "superType": "keyword",
+        "description": "Concurrency flow keyword"
+      },
+      {
+        "id": "elisa.decl.skeleton",
+        "superType": "keyword",
+        "description": "Declaration keyword"
+      },
+      {
+        "id": "elisa.contract.clause",
+        "superType": "keyword",
+        "description": "Contract clause"
+      },
+      {
+        "id": "elisa.contract.quantifier",
+        "superType": "keyword",
+        "description": "Contract quantifier"
+      },
+      {
+        "id": "elisa.contract.ghost",
+        "superType": "modifier",
+        "description": "Ghost contract marker"
+      },
+      {
+        "id": "elisa.op.mutation",
+        "superType": "operator",
+        "description": "Mutation operator"
+      },
+      {
+        "id": "elisa.op.lambda",
+        "superType": "operator",
+        "description": "Lambda operator"
+      },
+      {
+        "id": "elisa.op.range",
+        "superType": "operator",
+        "description": "Range operator"
+      },
+      {
+        "id": "elisa.meta.decorator",
+        "superType": "decorator",
+        "description": "Decorator"
+      },
+      {
+        "id": "elisa.meta.directive",
+        "superType": "keyword",
+        "description": "Metadata directive"
+      },
+      {
+        "id": "elisa.meta.module",
+        "superType": "namespace",
+        "description": "Module name"
+      },
+      {
+        "id": "elisa.comment",
+        "superType": "comment",
+        "description": "Comment"
+      },
+      {
+        "id": "elisa.punctuation",
+        "superType": "operator",
+        "description": "Punctuation"
+      },
+      {
+        "id": "elisa.op.arithmetic",
+        "superType": "operator",
+        "description": "Arithmetic operator"
+      },
+      {
+        "id": "elisa.op.comparison",
+        "superType": "operator",
+        "description": "Comparison operator"
+      },
+      {
+        "id": "elisa.op.logical",
+        "superType": "operator",
+        "description": "Logical operator"
+      },
+      {
+        "id": "elisa.op.bitwise",
+        "superType": "operator",
+        "description": "Bitwise operator"
+      },
+      {
+        "id": "elisa.op.assign",
+        "superType": "operator",
+        "description": "Assignment operator"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "scopes": {
+          "elisa.type.int.signed": "storage.type.numeric",
+          "elisa.type.int.unsigned": "storage.type.numeric",
+          "elisa.type.float": "storage.type.numeric",
+          "elisa.type.scalar": "storage.type",
+          "elisa.type.string": "storage.type.string",
+          "elisa.type.container": "storage.type",
+          "elisa.type.user": [
+            "entity.name.type"
+          ],
+          "elisa.enum.variant": [
+            "variable.other.enummember"
+          ],
+          "elisa.type.void": "storage.type",
+          "elisa.lit.int": "constant.numeric",
+          "elisa.lit.float": "constant.numeric",
+          "elisa.lit.char": "constant.character",
+          "elisa.lit.string": "string.quoted",
+          "elisa.lit.value": "constant.language",
+          "elisa.fn.def": "entity.name.function",
+          "elisa.fn.use": "variable.function",
+          "elisa.fn.lambda": "storage.type.function",
+          "elisa.bind.param": "variable.parameter",
+          "elisa.bind.local": "variable.other",
+          "elisa.bind.field": "variable.other.member",
+          "elisa.bind.global": "variable.other.constant",
+          "elisa.bind.discard": "comment",
+          "elisa.effect.grant": "storage.modifier",
+          "elisa.effect.name": "support.type",
+          "elisa.effect.unsafe": "invalid.illegal",
+          "elisa.effect.error": "support.type.exception",
+          "elisa.mem.region": "storage.modifier",
+          "elisa.mem.qualifier": "storage.modifier",
+          "elisa.flow.branch": "keyword.control",
+          "elisa.flow.error": "keyword.control.exception",
+          "elisa.flow.concurrent": "keyword.control",
+          "elisa.decl.skeleton": "storage.type",
+          "elisa.contract.clause": "keyword.other",
+          "elisa.contract.quantifier": "keyword.other",
+          "elisa.contract.ghost": "storage.modifier",
+          "elisa.op.mutation": "keyword.operator.assignment",
+          "elisa.op.lambda": "keyword.operator",
+          "elisa.op.range": "keyword.operator",
+          "elisa.meta.decorator": "entity.name.function.decorator",
+          "elisa.meta.directive": "keyword.other.directive",
+          "elisa.meta.module": "entity.name.namespace",
+          "elisa.comment": "comment",
+          "elisa.punctuation": "punctuation",
+          "elisa.op.arithmetic": "keyword.operator.arithmetic",
+          "elisa.op.comparison": "keyword.operator.comparison",
+          "elisa.op.logical": "keyword.operator.logical",
+          "elisa.op.bitwise": "keyword.operator.bitwise",
+          "elisa.op.assign": "keyword.operator.assignment"
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Elisa",
+      "properties": {
+        "elisa.languageServer.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the elisa-lsp executable. If empty, the extension checks the sibling Elisa-LSP build and then PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./ && esbuild dist/extension.js --bundle --platform=node --target=node18 --external:vscode --outfile=dist/extension.js --sourcemap=external --allow-overwrite",
+    "check": "tsc --noEmit -p ./",
+    "watch": "tsc --watch -p ./",
+    "package": "npm run compile && vsce package",
+    "test": "npm run check && node --test"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.3.3"
+  }
+}

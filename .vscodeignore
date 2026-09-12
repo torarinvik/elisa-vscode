@@ -1,0 +1,12 @@
+.git/
+.gitignore
+.vscode/
+node_modules/
+src/
+test/
+tsconfig.json
+tsconfig.tsbuildinfo
+*.ts
+*.map
+*.vsix
+npm-debug.log*

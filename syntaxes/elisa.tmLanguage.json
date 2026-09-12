@@ -1,0 +1,257 @@
+{
+  "name": "Elisa",
+  "scopeName": "source.elisa",
+  "fileTypes": [
+    "elisa"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#enumFamilyReferences"
+    },
+    {
+      "include": "#enumVariantDeclarations"
+    },
+    {
+      "include": "#enumVariantReferences"
+    },
+    {
+      "include": "#typeReferences"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#decorators"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "name": "variable.other.elisa",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.elisa",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.block.elisa",
+          "match": "\\\"\\\"\\\"[\\s\\S]*?\\\"\\\"\\\""
+        },
+        {
+          "name": "string.quoted.double.elisa",
+          "match": "\\bf\\\"(?:\\\\.|[^\\\"\\\\])*\\\""
+        },
+        {
+          "name": "string.quoted.double.elisa",
+          "match": "\\\"(?:\\\\.|[^\\\"\\\\])*\\\""
+        },
+        {
+          "name": "string.quoted.single.elisa",
+          "match": "'(?:\\\\.|[^'\\\\])*'"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(def|extern)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.elisa"
+            },
+            "2": {
+              "name": "entity.name.function.elisa"
+            }
+          }
+        },
+        {
+          "match": "\\b(struct|enum|const|global|module)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.declaration.elisa"
+            },
+            "2": {
+              "name": "entity.name.type.elisa"
+            }
+          }
+        }
+      ]
+    },
+    "typeReferences": {
+      "patterns": [
+        {
+          "match": "(:|->|\\bis)\\s*([A-Z][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.separator.type.elisa"
+            },
+            "2": {
+              "name": "entity.name.type.elisa"
+            }
+          }
+        }
+      ]
+    },
+    "enumVariantReferences": {
+      "patterns": [
+        {
+          "match": "(\\.)((?:[A-Z][A-Za-z0-9_]*))\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.accessor.elisa"
+            },
+            "2": {
+              "name": "constant.language.elisa"
+            }
+          }
+        }
+      ]
+    },
+    "enumFamilyReferences": {
+      "patterns": [
+        {
+          "match": "\\b([A-Z][A-Za-z0-9_]*)(?=\\.(?:[A-Z][A-Za-z0-9_]*)\\b)",
+          "captures": {
+            "1": {
+              "name": "entity.name.type.elisa"
+            }
+          }
+        }
+      ]
+    },
+    "enumVariantDeclarations": {
+      "patterns": [
+        {
+          "match": "^([\\t ]+)([A-Z][A-Za-z0-9_]*)(?=\\s*(?::|\\([^\\n]*\\)|=.*|$))",
+          "captures": {
+            "2": {
+              "name": "constant.language.elisa"
+            }
+          }
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.elisa",
+          "match": "\\b0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*\\b"
+        },
+        {
+          "name": "constant.numeric.float.elisa",
+          "match": "\\b(?:[0-9](?:_?[0-9])*\\.[0-9](?:_?[0-9])*|[0-9](?:_?[0-9])*[eE][+-]?[0-9](?:_?[0-9])*)\\b"
+        },
+        {
+          "name": "constant.numeric.integer.elisa",
+          "match": "\\b[0-9](?:_?[0-9])*\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.elisa",
+          "match": "\\b(?:if|elif|else|while|for|in|break|continue|return|pass|match|try|catch|raise|panic|error|defer|guard|do|rebind)\\b"
+        },
+        {
+          "name": "keyword.declaration.elisa",
+          "match": "\\b(?:def|extern|struct|enum|const|global|export|packed|repr|aligned|is|with|as|to|static|include|using|public|private|extend)\\b"
+        },
+        {
+          "name": "keyword.other.effect.elisa",
+          "match": "\\b(?:can|uses|trusted|Unsafe|raises|requires|ensure|ensures|invariant|decreases|changes|preserves|fulfills)\\b"
+        },
+        {
+          "name": "keyword.other.contract.elisa",
+          "match": "\\b(?:forall|exists|where|ghost|lemma|law|permission|effect|protocol|impl)\\b"
+        },
+        {
+          "name": "keyword.other.elisa",
+          "match": "\\b(?:region|new|heap|stack|tail|move|generate|emit|sizeof|alignof|offsetof|parallel|nursery|pool|submit|await|wait|lock|spawn_daemon)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.elisa",
+          "match": "\\b(?:bool|char|void|int|i8|i16|i32|i64|isize|u8|u16|u32|u64|usize|uintptr|f32|f64|cstr|dstr|sview|darray|dict|set|view|array|id|Self|Arena)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.elisa",
+          "match": "\\b(?:true|false|null|zeroed)\\b"
+        }
+      ]
+    },
+    "decorators": {
+      "patterns": [
+        {
+          "name": "entity.name.function.decorator.elisa",
+          "match": "@[A-Za-z_][A-Za-z0-9_]*"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.elisa",
+          "match": "<-|:=|\\+=|-=|\\*=|/=|%=|\\^=|\\|=|&=|<<=|>>=|\\?="
+        },
+        {
+          "name": "keyword.operator.comparison.elisa",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.elisa",
+          "match": "\\b(?:and|or|not)\\b"
+        },
+        {
+          "name": "keyword.operator.elisa",
+          "match": "=>|->|\\.\\.|\\.\\.<|\\.\\.>|\\.\\.<=|\\+|-|\\*|/|%|\\||\\^|~|&"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.elisa",
+          "match": "[(){}\\[\\],:;.?!]"
+        }
+      ]
+    }
+  }
+}
