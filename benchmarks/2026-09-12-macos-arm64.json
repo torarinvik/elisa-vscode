@@ -1,0 +1,88 @@
+{
+  "machine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "node": "v26.8.2",
+    "revision": "2693ef2",
+    "profile": "release"
+  },
+  "grammar": {
+    "unit": "milliseconds per full tokenization",
+    "smallFixture": {
+      "samples": 200,
+      "p50": 0.055,
+      "p95": 0.94,
+      "p99": 13.669,
+      "max": 25.644,
+      "mean": 0.563
+    },
+    "scaling": [
+      {
+        "lines": 2500,
+        "samples": 20,
+        "p50": 83.279,
+        "p95": 186.098,
+        "p99": 222.106,
+        "max": 222.106,
+        "mean": 107.382
+      },
+      {
+        "lines": 5000,
+        "samples": 20,
+        "p50": 196.416,
+        "p95": 339.499,
+        "p99": 358.817,
+        "max": 358.817,
+        "mean": 225.411
+      },
+      {
+        "lines": 10000,
+        "samples": 20,
+        "p50": 666.098,
+        "p95": 846.838,
+        "p99": 897.482,
+        "max": 897.482,
+        "mean": 640.804
+      }
+    ]
+  },
+  "discovery": {
+    "unit": "milliseconds per full resolution against a warm fake workspace",
+    "warm": {
+      "samples": 50,
+      "p50": 2.27,
+      "p95": 8.703,
+      "p99": 9.909,
+      "max": 9.909,
+      "mean": 2.706
+    }
+  },
+  "server": {
+    "available": true,
+    "sourceLines": 750,
+    "serverReady": {
+      "samples": 5,
+      "p50": 11.172,
+      "p95": 42.282,
+      "p99": 42.282,
+      "max": 42.282,
+      "mean": 17.447
+    },
+    "semanticTokens": {
+      "samples": 30,
+      "p50": 3.08,
+      "p95": 10.723,
+      "p99": 966.842,
+      "max": 966.842,
+      "mean": 36.169
+    },
+    "hover": {
+      "samples": 30,
+      "p50": 2.733,
+      "p95": 6.305,
+      "p99": 8.026,
+      "max": 8.026,
+      "mean": 3.053
+    }
+  }
+}

@@ -8,6 +8,7 @@ out/
 src/
 test/
 integration/
+benchmarks/
 scripts/
 tsconfig.json
 tsconfig.tsbuildinfo

@@ -19,6 +19,7 @@ const forbidden = [
   "scripts/",
   "node_modules/",
   "out/",
+  "benchmarks/",
   "package-lock.json",
   "IMPLEMENTATION_PLAN.md",
   ".map",

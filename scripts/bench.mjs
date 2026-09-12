@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -51,6 +51,113 @@ function generateSource(lines) {
     output.push(`    return false`);
   }
   return output.join("\n");
+}
+
+function createStdioClient(executable) {
+  const child = spawn(executable, [], { stdio: ["pipe", "pipe", "pipe"] });
+  let buffer = Buffer.alloc(0);
+  const pending = new Map();
+  let nextId = 1;
+  const closed = new Promise((resolveClose) => child.on("close", resolveClose));
+
+  child.stdout.on("data", (chunk) => {
+    buffer = Buffer.concat([buffer, chunk]);
+    for (;;) {
+      const headerEnd = buffer.indexOf("\r\n\r\n");
+      if (headerEnd === -1) {
+        return;
+      }
+      const header = buffer.slice(0, headerEnd).toString("ascii");
+      const match = /Content-Length:\s*(\d+)/i.exec(header);
+      if (!match) {
+        buffer = buffer.slice(headerEnd + 4);
+        continue;
+      }
+      const length = Number(match[1]);
+      if (buffer.length < headerEnd + 4 + length) {
+        return;
+      }
+      const body = buffer.slice(headerEnd + 4, headerEnd + 4 + length).toString("utf8");
+      buffer = buffer.slice(headerEnd + 4 + length);
+      let message;
+      try {
+        message = JSON.parse(body);
+      } catch {
+        continue;
+      }
+      if (message.id !== undefined && pending.has(message.id)) {
+        const entry = pending.get(message.id);
+        pending.delete(message.id);
+        entry.resolve(message);
+      }
+    }
+  });
+
+  function send(payload) {
+    const body = Buffer.from(JSON.stringify(payload), "utf8");
+    child.stdin.write(
+      Buffer.concat([Buffer.from(`Content-Length: ${body.length}\r\n\r\n`), body]),
+    );
+  }
+
+  return {
+    request(method, params) {
+      const id = nextId++;
+      send({ jsonrpc: "2.0", id, method, params });
+      return new Promise((resolveRequest) => pending.set(id, { resolve: resolveRequest }));
+    },
+    notify(method, params) {
+      send({ jsonrpc: "2.0", method, params });
+    },
+    async stop() {
+      try {
+        send({ jsonrpc: "2.0", method: "exit" });
+      } catch {
+        void 0;
+      }
+      child.kill("SIGTERM");
+      await closed;
+    },
+  };
+}
+
+const serverBinary = resolve(root, "..", "Elisa-LSP", "build", "elisa-lsp");
+
+async function benchServer() {
+  if (!existsSync(serverBinary)) {
+    return { available: false, reason: `missing ${serverBinary}; build the sibling server first` };
+  }
+  const ready = [];
+  for (let index = 0; index < 5; index += 1) {
+    const started = performance.now();
+    const client = createStdioClient(serverBinary);
+    await client.request("initialize", {});
+    ready.push(performance.now() - started);
+    await client.stop();
+  }
+
+  const client = createStdioClient(serverBinary);
+  await client.request("initialize", {});
+  const uri = "file:///bench.elisa";
+  const source = generateSource(600);
+  client.notify("textDocument/didOpen", {
+    textDocument: { uri, languageId: "Elisa", version: 1, text: source },
+  });
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
+  const tokens = await timeOperation(
+    () => client.request("textDocument/semanticTokens/full", { textDocument: { uri } }),
+    30,
+  );
+  const hover = await timeOperation(
+    () =>
+      client.request("textDocument/hover", {
+        textDocument: { uri },
+        position: { line: 0, character: 4 },
+      }),
+    30,
+  );
+  await client.stop();
+  return { available: true, sourceLines: source.split("\n").length, serverReady: summarize(ready), semanticTokens: tokens, hover };
 }
 
 const grammar = await loadElisaGrammar();
@@ -119,6 +226,7 @@ const report = {
     unit: "milliseconds per full resolution against a warm fake workspace",
     warm: discoveryWarm,
   },
+  server: await benchServer(),
 };
 
 console.log(JSON.stringify(report, null, 2));

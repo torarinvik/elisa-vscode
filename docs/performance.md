@@ -6,9 +6,11 @@ Run the harness with:
 npm run bench
 ```
 
-It prints JSON with machine metadata, grammar tokenization timings, scaling samples, and
-discovery resolution timings. All numbers below are a **single-machine baseline**, not a
-promise. Re-measure on a named reference machine before gating changes.
+It prints JSON with machine metadata, grammar tokenization timings, scaling samples,
+discovery resolution timings, and, when the sibling server binary is present, real
+`initialize`/`semanticTokens/full`/`hover` round trips over stdio. All numbers below are
+a **single-machine baseline**, not a promise. Re-measure on a named reference machine
+before gating changes.
 
 ## Methodology
 
@@ -21,6 +23,11 @@ promise. Re-measure on a named reference machine before gating changes.
    temporary workspace containing an executable `build/elisa-lsp`.
 5. Scaling samples grow the synthetic source at roughly `N`, `2N`, and `4N` to expose
    accidental superlinear behavior.
+6. Server measurements spawn the sibling `build/elisa-lsp`, complete `initialize`, open a
+   synthetic document, then time per-request round trips on the warm process. The first
+   semantic-token request also pays for analysis, which shows up in the tail.
+
+Raw captures are stored under `benchmarks/` with the date and platform in the name.
 
 ## Recorded baseline (2026-09-12)
 
@@ -38,6 +45,31 @@ Scaling from 2,500 to 10,000 lines (4×) grows the p50 by roughly 2.7× on this 
 the grammar shows no obvious quadratic blowup on this synthetic shape. Adversarial line
 shapes are covered by `test/hostile-inputs.test.mjs`; they assert bounded completion, not
 throughput.
+
+## Server round trips (2026-09-12, capture artifact)
+
+Source: `benchmarks/2026-09-12-macos-arm64.json`, sibling `Elisa-LSP` build, release
+`-O2`, 750-line synthetic document.
+
+| Measurement | Samples | p50 | p95 | p99 | max |
+| --- | --- | --- | --- | --- | --- |
+| Warm `initialize` round trip (ms) | 5 | 11.2 | 42.3 | 42.3 | 42.3 |
+| `semanticTokens/full` round trip (ms) | 30 | 3.1 | 10.7 | 966.8 | 966.8 |
+| `hover` round trip (ms) | 30 | 2.7 | 6.3 | 8.0 | 8.0 |
+
+The semantic-token tail includes the first request that triggers document analysis; later
+requests are sub-10 ms. These are client-observed round trips, not isolated server time,
+and they were captured while unrelated sibling-repository test jobs were running on the
+same machine. Treat them as an order-of-magnitude baseline only. A named idle reference
+machine is required before gating.
+
+## Load sensitivity
+
+The two captured runs on this machine differ materially in the grammar scaling rows
+(for example the 10,000-line p50 moved from 185 ms to 666 ms between an idle run and a
+loaded run). That difference is CPU contention from concurrent repository test jobs, not
+a code change. This is exactly why the plan requires controlled runners and separate
+cold/warm samples; do not accept or reject a change from a single noisy capture.
 
 ## What is not measured yet
 
