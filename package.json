@@ -5,6 +5,14 @@
   "version": "0.1.0",
   "publisher": "elisa-language",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/torarinvik/elisa-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/torarinvik/elisa-vscode/issues"
+  },
+  "homepage": "https://github.com/torarinvik/elisa-vscode#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
