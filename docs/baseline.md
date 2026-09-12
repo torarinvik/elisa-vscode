@@ -39,9 +39,11 @@ cd ../Elisa-LSP && bash build.sh && bash test/run_all.sh
   through `vscode-textmate` and `vscode-oniguruma`, discovery precedence, lifecycle
   races, configuration classification, taxonomy validation, and health-report redaction.
 - `npm run audit:vsix`: 6 packaged entries, no leaked build inputs or source maps.
-- `npm run smoke:vsix`: VSIX packaged successfully; isolated install **skipped with
-  reason** because no VS Code CLI (`code`) was available on this machine. Set
-  `VSCODE_BIN` or install the CLI to run the install step.
+- `npm run smoke:vsix`: VSIX packaged and installed into an isolated profile using the
+  VS Code CLI bundled with the installed app, then verified to contain the compiled
+  bundle and grammar. The extension-host integration suite (`npm run test:integration`)
+  is provided but could not run in this headless shell because Electron could not start
+  its network service; run it from a desktop session or CI with a display.
 
 ## Explicit gaps
 

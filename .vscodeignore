@@ -7,6 +7,7 @@ node_modules/
 out/
 src/
 test/
+integration/
 scripts/
 tsconfig.json
 tsconfig.tsbuildinfo

@@ -39,6 +39,16 @@
 Run `npm test` before every change. Run `npm run audit:vsix` after packaging changes and
 `npm run smoke:vsix` when a VS Code CLI is available.
 
+### Extension-host integration tests
+
+`npm run test:integration` launches VS Code through `@vscode/test-electron` and runs
+`integration/suite`, which asserts activation, language registration, command
+registration, the semantic legend, and opening an Elisa document. It requires a desktop
+session with a working Electron sandbox and no other VS Code instance sharing the
+profile; on Linux CI run it under `xvfb-run`. If the host cannot start, the harness
+exits after 120 seconds and kills the stray process. It is intentionally separate from
+`npm test`, which never launches an editor.
+
 ## Fixture conventions
 
 - Highlighting fixtures live in `test/fixtures/highlighting/` as real `.elisa` sources.

@@ -73,9 +73,11 @@ because code exists.
 
 ## Product and distribution
 
-- [ ] Clean-profile VSIX installation is tested.
-  Harness exists (`npm run smoke:vsix`) but the install step was skipped on this machine
-  because no VS Code CLI was available.
+- [x] Clean-profile VSIX installation is tested.
+  Evidence: `npm run smoke:vsix` packages the VSIX, installs it into an isolated
+  `--extensions-dir`/`--user-data-dir` profile through the bundled VS Code CLI, and
+  verifies the unpacked extension contains `package.json`, `dist/extension.js`, and the
+  grammar. Extension-host behavior tests are available via `npm run test:integration`.
 - [x] Missing-server setup is actionable and preserves lexical support.
   Evidence: shared failure handling, setup actions, and a missing-server notification
   with Open Setting, Select Executable, Setup Guide, and Discovery Report.

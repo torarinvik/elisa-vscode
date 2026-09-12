@@ -4,3 +4,4 @@ out/
 *.vsix
 .DS_Store
 IMPLEMENTATION_PLAN.md
+.vscode-test/

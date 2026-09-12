@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,8 +18,44 @@ function run(command, args, options = {}) {
   });
 }
 
+const bundledCliPaths = {
+  darwin: [
+    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+    "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code",
+    join(
+      process.env.HOME ?? "",
+      "Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+    ),
+  ],
+  linux: ["/usr/share/code/bin/code", "/snap/bin/code", "/usr/bin/code"],
+  win32: [
+    join(
+      process.env.LOCALAPPDATA ?? "",
+      "Programs",
+      "Microsoft VS Code",
+      "bin",
+      "code.cmd",
+    ),
+    join(
+      process.env.PROGRAMFILES ?? "",
+      "Microsoft VS Code",
+      "bin",
+      "code.cmd",
+    ),
+  ],
+};
+
+function isRunnable(candidate) {
+  try {
+    execFileSync(candidate, ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function findVsCodeCli() {
-  if (process.env.VSCODE_BIN) {
+  if (process.env.VSCODE_BIN && isRunnable(process.env.VSCODE_BIN)) {
     return process.env.VSCODE_BIN;
   }
   const names =
@@ -30,12 +66,14 @@ function findVsCodeCli() {
     }
     for (const name of names) {
       const candidate = join(entry, name);
-      try {
-        execFileSync(candidate, ["--version"], { stdio: "ignore" });
+      if (isRunnable(candidate)) {
         return candidate;
-      } catch {
-        continue;
       }
+    }
+  }
+  for (const candidate of bundledCliPaths[process.platform] ?? []) {
+    if (candidate && isRunnable(candidate)) {
+      return candidate;
     }
   }
   return undefined;
@@ -69,19 +107,41 @@ run(cli, [
 
 const installed = run(cli, [
   "--list-extensions",
+  "--show-versions",
   "--extensions-dir",
   extensionsDir,
   "--user-data-dir",
   userDataDir,
 ])
   .split("\n")
-  .map((line) => line.trim().toLowerCase())
+  .map((line) => line.trim())
   .filter((line) => line.length > 0);
 
 const expected = "elisa-language.elisa-vscode";
-if (!installed.includes(expected)) {
+if (!installed.some((line) => line.toLowerCase().startsWith(expected))) {
   console.error(`installed extensions did not include ${expected}: ${installed.join(", ")}`);
   process.exit(1);
 }
 
-console.log(`installed-VSIX smoke OK: ${expected} installed into an isolated profile`);
+const installedRoots = readdirSync(extensionsDir).filter((entry) =>
+  entry.startsWith("elisa-language.elisa-vscode"),
+);
+const unpacked = installedRoots.map((entry) => ({
+  root: entry,
+  packageJson: existsSync(join(extensionsDir, entry, "package.json")),
+  bundle: existsSync(join(extensionsDir, entry, "dist", "extension.js")),
+  grammar: existsSync(
+    join(extensionsDir, entry, "syntaxes", "elisa.tmLanguage.json"),
+  ),
+}));
+const incomplete = unpacked.filter(
+  (entry) => !entry.packageJson || !entry.bundle || !entry.grammar,
+);
+if (unpacked.length === 0 || incomplete.length > 0) {
+  console.error(`installed extension is incomplete: ${JSON.stringify(unpacked)}`);
+  process.exit(1);
+}
+
+console.log(
+  `installed-VSIX smoke OK: ${expected} ${installed.find((line) => line.toLowerCase().startsWith(expected))} unpacked with bundle and grammar`,
+);
