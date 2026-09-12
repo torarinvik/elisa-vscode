@@ -136,3 +136,71 @@ test("grammar tokenization is deterministic for the same input", async () => {
   const second = JSON.stringify(tokenizeFile(grammar, text));
   assert.equal(first, second);
 });
+
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+test("seeded random token soup never throws and always yields ordered tokens", async () => {
+  const grammar = await loadElisaGrammar();
+  const alphabet = [
+    "enum",
+    "def",
+    "Event",
+    "None",
+    "resize",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]",
+    ":",
+    ".",
+    "..",
+    "..<",
+    "<-",
+    "->",
+    "<<",
+    ">>",
+    "<=",
+    ">=",
+    "f\"",
+    "\"",
+    "'",
+    "\\",
+    "#",
+    " ",
+    "\t",
+    "\n",
+    "\r\n",
+    "_",
+    "123",
+    "0x1F",
+    "true",
+    "@decorator",
+    "λ",
+    "élan",
+  ];
+  const random = seededRandom(20260912);
+  for (let iteration = 0; iteration < 200; iteration += 1) {
+    const parts = [];
+    const length = 20 + Math.floor(random() * 80);
+    for (let index = 0; index < length; index += 1) {
+      parts.push(alphabet[Math.floor(random() * alphabet.length)]);
+    }
+    const text = parts.join("");
+    const tokens = tokenizeFile(grammar, text);
+    for (const lineTokens of tokens) {
+      let previousEnd = 0;
+      for (const token of lineTokens) {
+        assert.ok(token.start >= previousEnd, "tokens are ordered and non-overlapping");
+        previousEnd = token.start + token.text.length;
+      }
+    }
+  }
+});

@@ -21,6 +21,16 @@ packaged VSIX smoke harness, and the sibling server suites have run on that comb
 - `prerelease`: an explicitly labeled build when a measurement or compatibility change
   needs field validation.
 
+## Upgrade and rollback
+
+- Configuration is preserved across extension upgrades; there are no destructive
+  migrations and no settings are rewritten.
+- A server build that disagrees with the client legend is reported in the health report
+  as a degraded session instead of applying misaligned tokens.
+- Downgrades follow the same rule: the extension validates the legend at initialization
+  and never rewrites server files.
+- Caches are in-memory only; rollback cannot corrupt on-disk state.
+
 ## Known limitations
 
 - Multi-root folders share one language server session in this version. A routing layer
