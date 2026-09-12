@@ -1,0 +1,50 @@
+name: quality
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+
+jobs:
+  fuzz-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run compile
+      - name: Hostile input and soak suites
+        run: |
+          set -o pipefail
+          node --test test/hostile-inputs.test.mjs test/soak.test.mjs test/process-lifecycle.test.mjs 2>&1 | tee fuzz-soak-results.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-soak-results
+          path: fuzz-soak-results.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+  benchmarks:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run compile
+      - name: Record grammar and discovery baselines
+        run: node scripts/bench.mjs > benchmarks/ci-${{ github.run_id }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: benchmarks/ci-${{ github.run_id }}.json
+          if-no-files-found: error
+          retention-days: 90
