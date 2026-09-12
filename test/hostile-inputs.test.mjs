@@ -80,6 +80,7 @@ test("health report details cannot inject new lines", () => {
         time: 0,
       },
       resourceLimits: [],
+      warnings: [],
     },
     { homeDirectory: "/home/elisa" },
   );

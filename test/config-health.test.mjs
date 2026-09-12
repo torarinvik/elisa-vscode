@@ -69,6 +69,7 @@ test("health reports include state, provenance, and no source text", () => {
       capabilities: ["hover", "semantic tokens"],
       lastFailure: undefined,
       resourceLimits: [],
+      warnings: [],
     },
     { homeDirectory: "/Users/elisa" },
   );
@@ -103,8 +104,10 @@ test("failure details are single-lined and redacted", () => {
         time: 0,
       },
       resourceLimits: [],
+      warnings: ["elisa.languageServer.path differs across workspace folders"],
     },
     { homeDirectory: "/Users/elisa" },
   );
   assert.match(report, /Last failure: missing-server \(No server found: ~\/secret\)/);
+  assert.match(report, /Warning: elisa\.languageServer\.path differs/);
 });

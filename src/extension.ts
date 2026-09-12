@@ -30,6 +30,7 @@ import {
   type SessionFailure,
   type SessionState,
 } from "./serverSession";
+import { describeSettingDivergence, type FolderSettingValue } from "./workspaceSessions";
 
 const languageSelector = [
   { scheme: "file", language: "elisa" },
@@ -69,13 +70,37 @@ interface Runtime {
 
 let runtime: Runtime | undefined;
 
+function configurationScope(): vscode.ConfigurationScope | undefined {
+  return vscode.workspace.workspaceFolders?.[0]?.uri;
+}
+
 function readSettings(): ParsedSettings {
-  const configuration = vscode.workspace.getConfiguration(configurationSection);
+  const configuration = vscode.workspace.getConfiguration(
+    configurationSection,
+    configurationScope(),
+  );
   const parsed = parseSettings({ languageServerPath: configuration.get("path") });
   for (const diagnostic of parsed.diagnostics) {
     void vscode.window.showWarningMessage(`Elisa setting ${diagnostic.key} ${diagnostic.message}.`);
   }
   return parsed;
+}
+
+function folderSettingValues(): FolderSettingValue[] {
+  return (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
+    folder: folder.uri.fsPath,
+    value: String(
+      vscode.workspace.getConfiguration(configurationSection, folder.uri).get("path") ?? "",
+    ),
+  }));
+}
+
+function configurationWarnings(): string[] {
+  const divergence = describeSettingDivergence(
+    "elisa.languageServer.path",
+    folderSettingValues(),
+  );
+  return divergence ? [divergence] : [];
 }
 
 function discoveryOptions(settings: ParsedSettings): DiscoveryOptions {
@@ -294,6 +319,7 @@ function healthSnapshot(state: Runtime): HealthSnapshot {
     capabilities: advertisedCapabilities(initializeResult?.capabilities),
     lastFailure: state.session.lastFailure,
     resourceLimits: [],
+    warnings: configurationWarnings(),
   };
 }
 

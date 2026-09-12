@@ -17,6 +17,7 @@ export interface HealthSnapshot {
   readonly capabilities: readonly string[];
   readonly lastFailure: SessionFailure | undefined;
   readonly resourceLimits: readonly string[];
+  readonly warnings: readonly string[];
 }
 
 export interface ReportOptions {
@@ -76,6 +77,11 @@ export function formatHealthReport(snapshot: HealthSnapshot, options: ReportOpti
     );
   } else {
     lines.push("- Last failure: none");
+  }
+  if (snapshot.warnings.length > 0) {
+    for (const warning of snapshot.warnings) {
+      lines.push(`- Warning: ${sanitizeLine(warning, home)}`);
+    }
   }
   if (options.preview) {
     lines.push("");
