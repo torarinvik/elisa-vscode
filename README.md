@@ -1,29 +1,59 @@
-# Elisa Language Support for VSCode
+# Elisa Language Support for VS Code
 
-This extension registers `.elisa` files, provides immediate TextMate syntax highlighting, and connects VSCode to the Elisa language server over stdio.
+Correctness-first language support for the Elisa programming language: immediate lexical
+highlighting, then compiler-backed semantic classification through the Elisa language
+server.
+
+## Install and set up
+
+- [Setting up the extension](docs/setting-up.md) — install, configure the server, and
+  verify support.
+- [Highlighting and themes](docs/highlighting.md) — what the lexical and semantic layers
+  guarantee, and how to inspect scopes.
+- [Troubleshooting](docs/troubleshooting.md) — the decision tree, health report, and
+  support report.
+- [Compatibility matrix](docs/compatibility.md) — supported hosts and known limits.
+
+The extension never downloads a toolchain, never executes workspace-controlled commands
+to discover language support, and never uploads source. In an untrusted workspace it
+stays in lexical-only mode unless you provide an explicit server path.
+
+## Commands
+
+All commands live under the **Elisa** category in the Command Palette:
+
+| Command | Purpose |
+| --- | --- |
+| Elisa: Restart Language Server | Orderly, idempotent restart |
+| Elisa: Show Language Server Output | The extension's own lifecycle log |
+| Elisa: Show Health Report | Host, provenance, versions, state, capabilities |
+| Elisa: Configure Language Server | Select and validate an executable |
+| Elisa: Explain Highlighting | Explain lexical vs semantic availability |
+| Elisa: Collect Support Report | Preview a bounded, redacted report |
 
 ## Development
 
-The extension looks for `elisa-lsp` in this order:
-
-1. `elisa.languageServer.path` in VSCode settings.
-2. `ELISA_LSP` in the extension host environment.
-3. A nearby `Elisa-LSP/build/elisa-lsp` while walking the workspace and extension ancestors (including the sibling-project layout used by this repository).
-4. `PATH`.
-
-Build the sibling server with:
+Prerequisites: Node 18+, npm, and `git`. The Elisa compiler and the sibling
+`Elisa-LSP` checkout are needed only to build and test the server.
 
 ```sh
-cd ../Elisa-LSP
-bash build.sh
+npm install
+npm run compile   # typescript check + esbuild bundle to dist/extension.js
+npm test          # real-grammar, discovery, lifecycle, config, and health tests
+npm run watch     # shared watch pipeline for tsc and esbuild
+npm run package   # compile + vsce package
 ```
 
-Then run `npm install` and press `F5` in this folder to launch an Extension Development Host. `npm run check` performs the strict TypeScript check; `npm run package` creates a VSIX.
+Press `F5` to launch an Extension Development Host. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the test layers, fixture conventions, and release
+checks.
 
-The extension does not download or start a compiler implicitly. If no usable server is found, it reports the exact configuration path to fix.
+## Repository layout
 
-To configure the server explicitly, open VSCode Settings JSON and add a property such as:
-
-```json
-"elisa.languageServer.path": "/Users/you/Documents/Coding Projects/Elisa Projects/Elisa-LSP/build/elisa-lsp"
+```text
+src/        extension host code (composition, discovery, session, health, commands)
+syntaxes/   TextMate grammar
+docs/       user, contributor, and architecture documentation
+test/       node:test suites plus highlighting fixtures
+scripts/    unified build/watch pipeline
 ```
