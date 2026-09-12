@@ -33,8 +33,9 @@ because code exists.
   Partial: machine metadata and synthetic scaling sources are recorded in
   `docs/performance.md`; tiny/typical/large-project fixture classes are not frozen.
 - [ ] p50/p95/p99 and maximum latency reported for interactive operations.
-  Partial: grammar tokenization and discovery are reported. Hover, completion, and
-  diagnostics are server-owned and not yet measured end to end.
+  Partial: grammar tokenization, discovery, and real stdio round trips for `initialize`,
+  `semanticTokens/full`, and `hover` are reported in `docs/performance.md` with a
+  capture artifact. Completion, rename, and diagnostics are not implemented yet.
 - [x] Activation/discovery does not block the extension host on filesystem scans.
   Evidence: asynchronous bounded discovery with tests; activation performs only
   configuration parsing and channel creation.
