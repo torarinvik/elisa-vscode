@@ -7,13 +7,19 @@ const { classifySettingsChange, parseSettings } = config;
 const { formatHealthReport, redactHome, sanitizeLine } = health;
 
 test("absent, null, and undefined settings fall back to the documented default", () => {
-  assert.deepEqual(parseSettings({}), { languageServerPath: "", diagnostics: [] });
+  assert.deepEqual(parseSettings({}), {
+    languageServerPath: "",
+    trace: "off",
+    diagnostics: [],
+  });
   assert.deepEqual(parseSettings({ languageServerPath: null }), {
     languageServerPath: "",
+    trace: "off",
     diagnostics: [],
   });
   assert.deepEqual(parseSettings({ languageServerPath: undefined }), {
     languageServerPath: "",
+    trace: "off",
     diagnostics: [],
   });
 });
@@ -21,6 +27,7 @@ test("absent, null, and undefined settings fall back to the documented default",
 test("settings parsing trims strings and reports wrong types", () => {
   assert.deepEqual(parseSettings({ languageServerPath: "  /opt/elisa-lsp  " }), {
     languageServerPath: "/opt/elisa-lsp",
+    trace: "off",
     diagnostics: [],
   });
   const wrongType = parseSettings({ languageServerPath: 7 });
@@ -41,6 +48,20 @@ test("settings changes are classified", () => {
   const changed = parseSettings({ languageServerPath: "/opt/two" });
   assert.equal(classifySettingsChange(before, same), "none");
   assert.equal(classifySettingsChange(before, changed), "session-restart");
+  const traced = parseSettings({ languageServerPath: "/opt/one", trace: "verbose" });
+  assert.equal(classifySettingsChange(before, traced), "presentation");
+});
+
+test("trace levels are validated and normalized", () => {
+  assert.equal(parseSettings({ trace: "VERBOSE" }).trace, "verbose");
+  assert.equal(parseSettings({ trace: "messages" }).trace, "messages");
+  const invalid = parseSettings({ trace: "everything" });
+  assert.equal(invalid.trace, "off");
+  assert.equal(invalid.diagnostics.length, 1);
+  assert.match(invalid.diagnostics[0].key, /elisa\.trace\.server/);
+  const wrongType = parseSettings({ trace: 2 });
+  assert.equal(wrongType.trace, "off");
+  assert.equal(wrongType.diagnostics.length, 1);
 });
 
 test("home directories are redacted from reports", () => {
@@ -67,6 +88,7 @@ test("health reports include state, provenance, and no source text", () => {
       serverIdentity: "elisa-lsp 1.2.3",
       encoding: "utf-16",
       capabilities: ["hover", "semantic tokens"],
+      trace: "off",
       lastFailure: undefined,
       resourceLimits: [],
       warnings: [],
@@ -97,6 +119,7 @@ test("failure details are single-lined and redacted", () => {
       serverIdentity: undefined,
       encoding: undefined,
       capabilities: [],
+      trace: "off",
       lastFailure: {
         kind: "missing-server",
         message: "No server\nfound",

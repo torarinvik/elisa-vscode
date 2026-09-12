@@ -43,6 +43,19 @@ components without evidence.
    against stale publication. If you see stale results, note the document version and
    restart the server with **Elisa: Restart Language Server**.
 
+## Protocol tracing
+
+Message ordering, cancellation, or malformed-response problems need a protocol trace.
+Set this **VS Code setting** and reload, or let the extension apply it live:
+
+```json
+"elisa.trace.server": "messages"
+```
+
+Use `"verbose"` only for short diagnostic sessions: it can include source code. The
+trace appears in the **Elisa Language Server Trace** output channel. Set the value back
+to `"off"` when finished.
+
 ## Support report
 
 Run **Elisa: Collect Support Report** to preview a bounded, redacted report. Review it

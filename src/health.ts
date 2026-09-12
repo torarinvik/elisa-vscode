@@ -15,6 +15,7 @@ export interface HealthSnapshot {
   readonly serverIdentity: string | undefined;
   readonly encoding: string | undefined;
   readonly capabilities: readonly string[];
+  readonly trace: string;
   readonly lastFailure: SessionFailure | undefined;
   readonly resourceLimits: readonly string[];
   readonly warnings: readonly string[];
@@ -70,6 +71,7 @@ export function formatHealthReport(snapshot: HealthSnapshot, options: ReportOpti
   lines.push(
     `- Resource limits: ${snapshot.resourceLimits.length > 0 ? snapshot.resourceLimits.join(", ") : "defaults"}`,
   );
+  lines.push(`- Protocol tracing: ${snapshot.trace}`);
   if (snapshot.lastFailure) {
     const failure = snapshot.lastFailure;
     lines.push(

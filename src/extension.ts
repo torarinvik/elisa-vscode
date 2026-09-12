@@ -7,7 +7,13 @@ import {
   State,
   TransportKind,
 } from "vscode-languageclient/node";
-import { classifySettingsChange, parseSettings, type ParsedSettings } from "./config";
+import { Trace } from "vscode-jsonrpc";
+import {
+  classifySettingsChange,
+  parseSettings,
+  type ParsedSettings,
+  type TraceLevel,
+} from "./config";
 import { commandIds, registerCommands } from "./commands";
 import { compareLegends, describeLegendComparison } from "./compatibility";
 import { formatHealthReport, type HealthSnapshot } from "./health";
@@ -58,6 +64,7 @@ interface RuntimeServices {
 interface Runtime {
   readonly context: vscode.ExtensionContext;
   readonly output: vscode.OutputChannel;
+  readonly traceChannel: vscode.OutputChannel;
   readonly status: vscode.StatusBarItem;
   readonly cache: DiscoveryCache;
   session: ServerSession;
@@ -75,32 +82,43 @@ function configurationScope(): vscode.ConfigurationScope | undefined {
 }
 
 function readSettings(): ParsedSettings {
-  const configuration = vscode.workspace.getConfiguration(
-    configurationSection,
-    configurationScope(),
-  );
-  const parsed = parseSettings({ languageServerPath: configuration.get("path") });
+  const scope = configurationScope();
+  const serverConfiguration = vscode.workspace.getConfiguration(configurationSection, scope);
+  const traceConfiguration = vscode.workspace.getConfiguration("elisa.trace", scope);
+  const parsed = parseSettings({
+    languageServerPath: serverConfiguration.get("path"),
+    trace: traceConfiguration.get("server"),
+  });
   for (const diagnostic of parsed.diagnostics) {
     void vscode.window.showWarningMessage(`Elisa setting ${diagnostic.key} ${diagnostic.message}.`);
   }
   return parsed;
 }
 
-function folderSettingValues(): FolderSettingValue[] {
+function folderSettingValues(section: string, key: string): FolderSettingValue[] {
   return (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
     folder: folder.uri.fsPath,
-    value: String(
-      vscode.workspace.getConfiguration(configurationSection, folder.uri).get("path") ?? "",
-    ),
+    value: String(vscode.workspace.getConfiguration(section, folder.uri).get(key) ?? ""),
   }));
 }
 
 function configurationWarnings(): string[] {
-  const divergence = describeSettingDivergence(
+  const warnings: string[] = [];
+  const pathDivergence = describeSettingDivergence(
     "elisa.languageServer.path",
-    folderSettingValues(),
+    folderSettingValues(configurationSection, "path"),
   );
-  return divergence ? [divergence] : [];
+  if (pathDivergence) {
+    warnings.push(pathDivergence);
+  }
+  const traceDivergence = describeSettingDivergence(
+    "elisa.trace.server",
+    folderSettingValues("elisa.trace", "server"),
+  );
+  if (traceDivergence) {
+    warnings.push(traceDivergence);
+  }
+  return warnings;
 }
 
 function discoveryOptions(settings: ParsedSettings): DiscoveryOptions {
@@ -173,6 +191,37 @@ function serverLegend(result: unknown): string[] | undefined {
   return legend.filter((entry): entry is string => typeof entry === "string");
 }
 
+function traceValue(level: TraceLevel): Trace {
+  switch (level) {
+    case "verbose":
+      return Trace.Verbose;
+    case "messages":
+      return Trace.Messages;
+    case "off":
+      return Trace.Off;
+  }
+}
+
+function applyTrace(state: Runtime): void {
+  if (state.client) {
+    void state.client.setTrace(traceValue(state.settings.trace));
+  }
+}
+
+function offerTraceConsent(state: Runtime): void {
+  void vscode.window
+    .showWarningMessage(
+      "Elisa protocol tracing may include source code. Enable it only for temporary diagnostics and disable it when finished.",
+      "Show Trace Output",
+    )
+    .then((action) => {
+      if (action === "Show Trace Output") {
+        state.traceChannel.show(true);
+      }
+      return undefined;
+    });
+}
+
 function createConnection(
   state: Runtime,
   server: ServerResolution,
@@ -185,6 +234,7 @@ function createConnection(
     documentSelector: languageSelector,
     synchronize: { configurationSection },
     outputChannel: state.output,
+    traceOutputChannel: state.traceChannel,
   };
   const client = new LanguageClient(
     "elisaLanguageServer",
@@ -209,6 +259,7 @@ function createConnection(
     .start()
     .then(() => {
       state.client = client;
+      void client.setTrace(traceValue(state.settings.trace));
       const comparison = compareLegends(
         declaredLegend(state.context),
         serverLegend(client.initializeResult),
@@ -317,6 +368,7 @@ function healthSnapshot(state: Runtime): HealthSnapshot {
     serverIdentity: identity,
     encoding: initializeResult?.capabilities.positionEncoding,
     capabilities: advertisedCapabilities(initializeResult?.capabilities),
+    trace: state.settings.trace,
     lastFailure: state.session.lastFailure,
     resourceLimits: [],
     warnings: configurationWarnings(),
@@ -468,6 +520,8 @@ async function showHealth(state: Runtime): Promise<void> {
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Elisa Language Server");
   context.subscriptions.push(output);
+  const traceChannel = vscode.window.createOutputChannel("Elisa Language Server Trace");
+  context.subscriptions.push(traceChannel);
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   status.command = commandIds.showHealthReport;
   status.show();
@@ -477,6 +531,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const state: Runtime = {
     context,
     output,
+    traceChannel,
     status,
     cache,
     session: undefined as unknown as ServerSession,
@@ -530,7 +585,10 @@ export function activate(context: vscode.ExtensionContext): void {
   let debounce: ReturnType<typeof setTimeout> | undefined;
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (!event.affectsConfiguration(configurationSection)) {
+      if (
+        !event.affectsConfiguration(configurationSection) &&
+        !event.affectsConfiguration("elisa.trace.server")
+      ) {
         return;
       }
       if (debounce) {
@@ -539,7 +597,8 @@ export function activate(context: vscode.ExtensionContext): void {
       debounce = setTimeout(() => {
         debounce = undefined;
         const next = readSettings();
-        const change = classifySettingsChange(state.settings, next);
+        const previous = state.settings;
+        const change = classifySettingsChange(previous, next);
         state.settings = next;
         if (change === "session-restart") {
           cache.clear();
@@ -547,6 +606,12 @@ export function activate(context: vscode.ExtensionContext): void {
             "[config] elisa.languageServer.path changed; restarting the language server",
           );
           void session.restart().then(() => reportRestartOutcome(state));
+        } else if (change === "presentation") {
+          output.appendLine(`[config] trace level changed to ${next.trace}`);
+          applyTrace(state);
+          if (previous.trace === "off" && next.trace !== "off") {
+            offerTraceConsent(state);
+          }
         }
       }, 300);
     }),

@@ -10,6 +10,9 @@ measurement context, compatibility changes, and known limitations.
 - Commands: Restart Language Server, Show Language Server Output, Show Health Report,
   Configure Language Server, Explain Highlighting, Collect Support Report.
 - A single quiet language-status item with lifecycle transitions and accessible text.
+- Opt-in protocol tracing via `elisa.trace.server` (`off`/`messages`/`verbose`) with a
+  separate trace channel and a source-code warning; trace changes apply without a
+  restart.
 - Redacted health and support reports that are previewed before export; no telemetry.
 - A packaged VSIX content audit and an isolated install smoke harness.
 

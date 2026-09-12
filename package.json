@@ -389,6 +389,17 @@
           "default": "",
           "scope": "machine-overridable",
           "description": "Path to the elisa-lsp executable. Supports an absolute path, a path relative to the first workspace folder, or a leading ~ for the home directory. When empty, the extension checks ELISA_LSP, a nearby Elisa-LSP build (trusted workspaces only), and PATH."
+        },
+        "elisa.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "machine-overridable",
+          "description": "Protocol trace level for the Elisa language server. 'verbose' can include source code; enable only for temporary diagnostics and disable when finished."
         }
       }
     }
@@ -405,6 +416,7 @@
     "audit:vsix": "node scripts/smoke/vsix-audit.mjs"
   },
   "dependencies": {
+    "vscode-jsonrpc": "^8.2.0",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {

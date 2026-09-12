@@ -39,10 +39,11 @@ resource-limit state.
 
 ## Logging
 
-Normal logs contain lifecycle events and actionable failures. Debug information such as
-request timing can be enabled for local diagnosis. Full protocol tracing can contain
-source code and is only acceptable as an explicit, temporary diagnostic mode; it is not
-enabled by default.
+Normal logs contain lifecycle events and actionable failures. The
+`elisa.trace.server` setting is `off` by default; enabling `messages` or `verbose`
+writes protocol traffic to the **Elisa Language Server Trace** channel, and `verbose`
+can include source code. Enabling a non-off level shows a warning, and users must
+disable it when finished. It is never enabled automatically.
 
 ## Reporting a vulnerability
 

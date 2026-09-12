@@ -73,6 +73,7 @@ test("health report details cannot inject new lines", () => {
       serverIdentity: undefined,
       encoding: undefined,
       capabilities: [],
+      trace: "off",
       lastFailure: {
         kind: "missing-server",
         message: "line one\nline two",
