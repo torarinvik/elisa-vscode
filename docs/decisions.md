@@ -156,3 +156,75 @@ and not shipped.
 **Consequences.** The compatibility page reflects tested reality.
 
 **Revisit when.** The platform matrix has real evidence.
+
+## ADR 11 — Full synchronization and full semantic tokens first
+
+**Decision.** Correctness baseline is full-document synchronization plus
+`semanticTokens/full`. Incremental text sync, token deltas, and result IDs are adopted
+only after benchmarks show a worthwhile improvement and invalidation is proven across
+edits, configuration changes, restarts, and legend changes.
+
+**Alternatives.** Adopt deltas immediately for smaller payloads.
+
+**Consequences.** Fewer invalidation states now; a failed delta lookup can never regress
+correctness because deltas are not yet used. The server owns the scheduling work.
+
+**Revisit when.** Sibling benchmarks quantify payload and CPU costs for real edit
+bursts.
+
+## ADR 12 — User-managed server distribution for the first release
+
+**Decision.** The extension helps the user locate or configure a server they manage. It
+does not download toolchains or auto-update them.
+
+**Alternatives.** Bundle platform artifacts; managed downloads with integrity checks.
+
+**Consequences.** No network trust surface and no installation state to corrupt or roll
+back. Missing-server setup must be excellent, which is why first-run actions and the
+health report exist.
+
+**Revisit when.** A signed release mechanism, platform selection, atomic install,
+offline behavior, and licensing are specified and reviewed.
+
+## ADR 13 — Remote follows the workspace host, web stays grammar-only
+
+**Decision.** The server runs where the workspace and toolchain live; paths and
+environment resolve in that extension host. Web support, if ever shipped, starts as
+grammar-only with an honest capability note.
+
+**Alternatives.** Run the server on the UI machine and copy sources; upload source to a
+remote service for web.
+
+**Consequences.** Remote is experimental until reconnection, path mapping, and crash
+behavior are tested. No implicit source movement between hosts.
+
+**Revisit when.** A remote test host and a WebAssembly worker with resource limits
+exist.
+
+## ADR 14 — Support reports are local, redacted, and previewed
+
+**Decision.** Health and support reports are assembled locally, omit source text,
+environment dumps, tokens, and private URLs, redact home paths, and require explicit
+user action to copy or share. Telemetry is absent.
+
+**Alternatives.** Automatic crash reporting; full tracing by default.
+
+**Consequences.** Incidental source exposure is avoided at the cost of needing an
+explicit temporary trace mode for deep protocol debugging.
+
+**Revisit when.** An opt-in trace design with a visible warning passes review.
+
+## ADR 15 — Edits and formatting require an authoritative model
+
+**Decision.** Rename, formatting, and broad edits are not advertised until the compiler
+provides an authoritative syntax/trivia model and the server implements versioned,
+collision-checked, atomic transactions. The client never marks a behavior-changing
+transformation as a preferred fix without that evidence.
+
+**Alternatives.** Ship heuristic formatting or textual rename now.
+
+**Consequences.** No destructive refactors from this client release; the server gates
+remain visible in the health report as absent capabilities.
+
+**Revisit when.** A formatter contract and edit transaction model exist and pass
+idempotence plus parse-preservation tests.

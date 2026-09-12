@@ -74,6 +74,14 @@ in normal operation. Report measurement context with every performance claim.
 5. Confirm `README.md` and capability claims match shipped behavior.
 6. Record build identifiers and any known limitations in the release notes.
 
+## Defect classification
+
+Track every defect by the invariant it violated: wrong identity, stale snapshot,
+coordinate mismatch, lifecycle leak, unbounded work, unsupported host, or presentation
+mapping. Fix the shared cause and add a regression at the lowest layer that can prove
+it, plus an end-to-end check when the failure crossed layers. A visible symptom is not
+the classification.
+
 ## Bug reports
 
 Include: extension version and build identifier (health report), editor host type,
