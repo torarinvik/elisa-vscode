@@ -6,6 +6,18 @@ import health from "../out/health.js";
 const { classifySettingsChange, parseSettings } = config;
 const { formatHealthReport, redactHome, sanitizeLine } = health;
 
+test("absent, null, and undefined settings fall back to the documented default", () => {
+  assert.deepEqual(parseSettings({}), { languageServerPath: "", diagnostics: [] });
+  assert.deepEqual(parseSettings({ languageServerPath: null }), {
+    languageServerPath: "",
+    diagnostics: [],
+  });
+  assert.deepEqual(parseSettings({ languageServerPath: undefined }), {
+    languageServerPath: "",
+    diagnostics: [],
+  });
+});
+
 test("settings parsing trims strings and reports wrong types", () => {
   assert.deepEqual(parseSettings({ languageServerPath: "  /opt/elisa-lsp  " }), {
     languageServerPath: "/opt/elisa-lsp",

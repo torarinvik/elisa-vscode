@@ -223,6 +223,9 @@ function updateStatus(state: Runtime, sessionState: SessionState): void {
   const presentation = statusPresentation[sessionState];
   state.status.text = `${presentation.icon} Elisa`;
   state.status.tooltip = presentation.tooltip;
+  state.status.accessibilityInformation = {
+    label: `Elisa language support: ${presentation.tooltip.replace(/^Elisa: /, "")}`,
+  };
 }
 
 function advertisedCapabilities(capabilities: unknown): string[] {

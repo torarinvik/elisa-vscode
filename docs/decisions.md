@@ -72,9 +72,14 @@ validates it rather than generating a second copy.
 manifest at package time.
 
 **Consequences.** Legend drift fails CI. Scope mappings remain explicit and
-theme-tested.
+theme-tested. The legend is append-only within a protocol generation: removing or
+reordering entries requires a schema version bump plus a coordinated client release,
+because a running session's wire indices must not change. At runtime, a server legend
+that disagrees with the client marks the session degraded and logs the difference
+instead of applying misaligned tokens. The build/test gate is the migration check.
 
-**Revisit when.** The taxonomy grows enough that generation is safer than validation.
+**Revisit when.** The taxonomy grows enough that generation is safer than validation, or
+a second protocol generation establishes bidirectional version negotiation.
 
 ## ADR 6 — Conservative lexical fallback, exact semantic classification
 

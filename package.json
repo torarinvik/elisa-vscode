@@ -391,6 +391,7 @@
     "watch": "node scripts/build.mjs --watch",
     "package": "npm run compile && vsce package",
     "test": "npm run compile && node --test",
+    "bench": "node scripts/bench.mjs",
     "smoke:vsix": "node scripts/smoke/vsix-smoke.mjs",
     "audit:vsix": "node scripts/smoke/vsix-audit.mjs"
   },
