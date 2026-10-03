@@ -1,10 +1,78 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import config from "../out/config.js";
 import health from "../out/health.js";
+import trust from "../out/trust.js";
 
 const { classifySettingsChange, parseSettings } = config;
 const { formatHealthReport, redactHome, sanitizeLine } = health;
+const { selectTrustedSettingValue } = trust;
+const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+
+test("Restricted Mode limits workspace-controlled executable and tracing settings", () => {
+  const restricted = manifest.capabilities?.untrustedWorkspaces;
+  assert.equal(restricted?.supported, "limited");
+  assert.deepEqual(restricted?.restrictedConfigurations, [
+    "elisa.languageServer.path",
+    "elisa.trace.server",
+  ]);
+});
+
+test("trusted workspaces use the effective language-server path", () => {
+  assert.deepEqual(
+    selectTrustedSettingValue(
+      "/workspace/bin/elisa-lsp",
+      {
+        globalValue: "/user/bin/elisa-lsp",
+        workspaceValue: "/workspace/bin/elisa-lsp",
+      },
+      true,
+    ),
+    { value: "/workspace/bin/elisa-lsp", workspaceOverrideIgnored: false },
+  );
+});
+
+test("untrusted workspaces ignore workspace executable overrides", () => {
+  assert.deepEqual(
+    selectTrustedSettingValue(
+      "/workspace/bin/elisa-lsp",
+      {
+        defaultValue: "",
+        globalValue: "/user/bin/elisa-lsp",
+        workspaceValue: "/workspace/bin/elisa-lsp",
+      },
+      false,
+    ),
+    { value: "/user/bin/elisa-lsp", workspaceOverrideIgnored: true },
+  );
+});
+
+test("untrusted folder overrides are ignored while global/default values remain usable", () => {
+  assert.deepEqual(
+    selectTrustedSettingValue(
+      "/folder/bin/elisa-lsp",
+      { defaultValue: "", workspaceFolderValue: "/folder/bin/elisa-lsp" },
+      false,
+    ),
+    { value: "", workspaceOverrideIgnored: true },
+  );
+  assert.deepEqual(
+    selectTrustedSettingValue("", { defaultValue: "" }, false),
+    { value: "", workspaceOverrideIgnored: false },
+  );
+});
+
+test("untrusted tracing overrides are ignored just like executable overrides", () => {
+  assert.deepEqual(
+    selectTrustedSettingValue(
+      "verbose",
+      { defaultValue: "off", workspaceValue: "verbose" },
+      false,
+    ),
+    { value: "off", workspaceOverrideIgnored: true },
+  );
+});
 
 test("absent, null, and undefined settings fall back to the documented default", () => {
   assert.deepEqual(parseSettings({}), {

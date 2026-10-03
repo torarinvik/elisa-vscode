@@ -5,3 +5,4 @@ out/
 .DS_Store
 IMPLEMENTATION_PLAN.md
 .vscode-test/
+/benchmarks

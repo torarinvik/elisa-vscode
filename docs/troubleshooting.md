@@ -19,6 +19,10 @@ components without evidence.
    executable and its source (setting, environment, nearby build, or PATH). If the
    setting is wrong, the extension reports it instead of silently choosing another
    binary. Use **Elisa: Configure Language Server** to select one.
+   In a multi-root workspace, check that every folder resolves
+   `elisa.languageServer.path` to the same executable. A conflicting or invalid
+   folder-specific value blocks startup; the extension does not silently use the first
+   folder's server for every project.
 
 4. **Did initialization succeed?**
    The output channel distinguishes resolution, spawn, and initialization failures. A
@@ -54,7 +58,9 @@ Set this **VS Code setting** and reload, or let the extension apply it live:
 
 Use `"verbose"` only for short diagnostic sessions: it can include source code. The
 trace appears in the **Elisa Language Server Trace** output channel. Set the value back
-to `"off"` when finished.
+to `"off"` when finished. In a multi-root workspace, differing per-folder trace levels
+force tracing off for the shared process so one folder cannot opt other folders' source
+into protocol logs.
 
 ## Support report
 
@@ -64,6 +70,7 @@ text, environment dumps, and private URLs.
 
 ## Workspace trust
 
-In an untrusted workspace the extension does not run nearby builds automatically.
-Explicit `elisa.languageServer.path` and `ELISA_LSP` still apply. Trusting the workspace
-re-enables discovery of nearby development builds.
+In an untrusted workspace the extension ignores workspace- and folder-level
+`elisa.languageServer.path` and `elisa.trace.server` overrides and does not run nearby
+builds automatically. User-level configuration and `ELISA_LSP` still apply. Trusting the
+workspace enables its path override and nearby-build discovery.

@@ -36,8 +36,14 @@ a **VS Code setting** such as:
 ```
 
 That is settings JSON, **not a terminal command**. Do not paste it into a shell.
-Relative paths resolve against the first workspace folder; a leading `~` means your
-home directory.
+User- and workspace-level relative paths resolve against the first workspace folder; a
+leading `~` means your home directory. A folder-specific relative path resolves against
+that folder. Multi-root workspaces still use one shared server: if those resolutions pick
+different executables, startup is blocked rather than analyzing a folder with the wrong
+server. Use the same executable path in every folder or remove folder-specific overrides.
+When no path is configured, automatic discovery checks each root independently and also
+blocks startup if roots select different nearby servers. A workspace can contain at most
+32 folders for the current LSP.
 
 The same path can be provided through the environment variable of the extension host
 (for example a remote host), as a **shell environment variable**:
@@ -81,3 +87,12 @@ that a packaged install cannot.
 
 Follow the decision tree in [troubleshooting.md](troubleshooting.md). Prefer the health
 report and output channel before reinstalling anything.
+
+## Workspace trust
+
+In an untrusted workspace, workspace- and folder-level
+`elisa.languageServer.path` overrides and workspace protocol tracing are ignored so a
+repository cannot choose the executable or enable source-bearing logs. User-level
+configuration and the extension-host `ELISA_LSP` variable remain available. **Configure
+Language Server** writes to user settings while the workspace is untrusted. Trusting the
+workspace enables its server-path override and nearby-build discovery.

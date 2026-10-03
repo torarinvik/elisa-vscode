@@ -40,7 +40,7 @@ test("every declared semantic token type has a standard superType and descriptio
   const ids = types.map((type) => type.id);
   assert.equal(new Set(ids).size, ids.length, "semantic token type ids are unique");
   for (const type of types) {
-    assert.match(type.id, /^elisa\.[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/, `${type.id} follows the id convention`);
+    assert.match(type.id, /^[A-Za-z0-9][A-Za-z0-9_-]*$/, `${type.id} follows the VS Code contribution ID pattern`);
     assert.ok(
       standardTypes.has(type.superType),
       `${type.id} superType ${type.superType} is a VS Code standard type`,
@@ -58,22 +58,34 @@ test("every declared semantic token type has a well-shaped TextMate scope mappin
   for (const type of manifest.contributes.semanticTokenTypes) {
     const value = mapping[type.id];
     assert.ok(value !== undefined, `${type.id} has a scope mapping`);
-    const values = Array.isArray(value) ? value : [value];
-    assert.ok(values.length > 0, `${type.id} maps to at least one scope`);
-    for (const scope of values) {
+    assert.ok(Array.isArray(value), `${type.id} scope mappings use VS Code's required array shape`);
+    assert.ok(value.length > 0, `${type.id} maps to at least one scope`);
+    for (const scope of value) {
       assert.equal(typeof scope, "string", `${type.id} scope entries are strings`);
       assert.match(scope, /^[a-z][a-z0-9.]*$/, `${type.id} scope ${scope} is well formed`);
     }
+    const legacyId = type.id.replaceAll("-", ".");
+    assert.deepEqual(
+      mapping[legacyId],
+      value,
+      `${type.id} retains a fallback for the previous dotted LSP legend`,
+    );
+  }
+});
+
+test("custom token type IDs satisfy VS Code's contribution schema", () => {
+  for (const type of manifest.contributes.semanticTokenTypes) {
+    assert.match(type.id, /^[A-Za-z0-9][A-Za-z0-9_-]*$/);
   }
 });
 
 test("enum variants fall back to the standard enumMember category", () => {
   const variant = manifest.contributes.semanticTokenTypes.find(
-    (type) => type.id === "elisa.enum.variant",
+    (type) => type.id === "elisa-enum-variant",
   );
   assert.deepEqual(variant?.superType, "enumMember");
   const mapping = manifest.contributes.semanticTokenScopes[0].scopes;
-  assert.deepEqual(mapping["elisa.enum.variant"], ["variable.other.enummember"]);
+  assert.deepEqual(mapping["elisa-enum-variant"], ["variable.other.enummember"]);
 });
 
 test("language defaults enable semantic highlighting without forcing a palette", () => {
@@ -88,12 +100,16 @@ test("language defaults enable semantic highlighting without forcing a palette",
 
 test("legend order matches the shared Elisa taxonomy when the sibling is available", (t) => {
   if (!existsSync(schemaPath)) {
+    if (process.env.ELISA_REQUIRE_FRESH_LSP === "1") {
+      assert.fail("semantic verification requires ../Elisa-LSP/docs/semantic-token-schema.json");
+    }
     t.skip("sibling Elisa-LSP semantic-token schema not present");
     return;
   }
   const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
   const declaredOrder = manifest.contributes.semanticTokenTypes.map((type) => type.id);
-  assert.deepEqual(declaredOrder, schema.legend, "client legend must follow the server legend");
+  const migratedWireLegend = schema.legend.map((type) => type.replaceAll(".", "-"));
+  assert.deepEqual(declaredOrder, migratedWireLegend, "client and server legends preserve exact order across ID migration");
   assert.equal(schema.legend.length, schema.count, "schema count matches its legend");
 });
 

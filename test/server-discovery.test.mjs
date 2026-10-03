@@ -14,6 +14,7 @@ const {
   probeInBatches,
   resolveConfiguredPath,
   resolveServer,
+  resolveServerForWorkspaceRoots,
 } = discovery;
 
 const homeDirectory = path.join(path.sep, "home", "elisa");
@@ -140,7 +141,7 @@ test("untrusted workspaces do not receive nearby candidates", () => {
   assert.equal(candidates.some((candidate) => candidate.source === "path"), true);
 });
 
-test("explicit candidates are honored even in untrusted workspaces", () => {
+test("an explicitly selected candidate can still be discovered in an untrusted workspace", () => {
   const candidates = buildCandidates(
     options({ trusted: false, configuredPath: "/opt/elisa-lsp" }),
   );
@@ -192,6 +193,30 @@ test("a valid setting wins without probing environment, nearby, or PATH", async 
   assert.equal(probe.probed.length, 1);
 });
 
+test("a valid ELISA_LSP value wins before nearby and PATH candidates", async () => {
+  const environmentServer = path.normalize("/opt/env/elisa-lsp");
+  const probe = fakeProbe(
+    new Map([
+      [environmentServer, "ok"],
+      ["/usr/bin/elisa-lsp", "ok"],
+    ]),
+  );
+  const outcome = await resolveServer(
+    options({
+      environmentPath: environmentServer,
+      environmentPathValue: "/usr/bin",
+    }),
+    { probe },
+  );
+  assert.equal(outcome.kind, "resolved");
+  assert.deepEqual(outcome.server, {
+    executable: environmentServer,
+    source: "environment",
+    origin: "ELISA_LSP",
+  });
+  assert.deepEqual(probe.probed, [environmentServer]);
+});
+
 test("nearby candidates resolve before PATH candidates", async () => {
   const nearby = path.normalize(
     buildCandidates(options()).find((candidate) => candidate.source === "nearby").path,
@@ -233,6 +258,104 @@ test("missing everywhere yields a bounded probe report", async () => {
   assert.equal(outcome.probes.every((result) => result.status === "missing"), true);
 });
 
+test("multi-root discovery shares one nearby executable only when every root agrees", async () => {
+  const rootA = "/workspace/a";
+  const rootB = "/workspace/b";
+  const shared = "/workspace/build/elisa-lsp";
+  const probe = fakeProbe(new Map([[shared, "ok"]]));
+  const outcome = await resolveServerForWorkspaceRoots(
+    options({
+      workspaceRoots: [rootA, rootB],
+      maxAncestorDepth: 1,
+    }),
+    { probe, concurrency: 2 },
+  );
+  assert.equal(outcome.kind, "resolved");
+  assert.equal(outcome.server.executable, path.normalize(shared));
+  assert.equal(outcome.server.source, "nearby");
+});
+
+test("multi-root discovery rejects distinct nearby builds without exposing their paths", async () => {
+  const rootA = "/workspace/a";
+  const rootB = "/workspace/b";
+  const pathA = path.join(rootA, "build", "elisa-lsp");
+  const pathB = path.join(rootB, "build", "elisa-lsp");
+  const probe = fakeProbe(new Map([[pathA, "ok"], [pathB, "ok"]]));
+  const outcome = await resolveServerForWorkspaceRoots(
+    options({ workspaceRoots: [rootA, rootB], maxAncestorDepth: 0 }),
+    { probe },
+  );
+  assert.equal(outcome.kind, "configuration-conflict");
+  assert.match(outcome.detail, /different server contexts/);
+  assert.doesNotMatch(outcome.detail, /\/workspace\//);
+});
+
+test("multi-root discovery refuses to apply one root's nearby server to an unresolved root", async () => {
+  const rootA = "/workspace/a";
+  const rootB = "/workspace/b";
+  const pathA = path.join(rootA, "build", "elisa-lsp");
+  const probe = fakeProbe(new Map([[pathA, "ok"]]));
+  const outcome = await resolveServerForWorkspaceRoots(
+    options({ workspaceRoots: [rootA, rootB], maxAncestorDepth: 0 }),
+    { probe },
+  );
+  assert.equal(outcome.kind, "configuration-conflict");
+});
+
+test("a single explicit executable remains a shared override across roots", async () => {
+  const configured = "/opt/shared/elisa-lsp";
+  const probe = fakeProbe(new Map([[configured, "ok"]]));
+  const outcome = await resolveServerForWorkspaceRoots(
+    options({
+      workspaceRoots: ["/workspace/a", "/workspace/b"],
+      configuredPath: configured,
+      maxAncestorDepth: 0,
+    }),
+    { probe },
+  );
+  assert.equal(outcome.kind, "resolved");
+  assert.equal(outcome.server.executable, configured);
+  assert.deepEqual(probe.probed, [configured]);
+});
+
+test("multi-root automatic discovery caps all filesystem probes and root count", async () => {
+  let inFlight = 0;
+  let peak = 0;
+  const probe = {
+    async probeFile(candidate) {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      return { candidate, status: "missing" };
+    },
+  };
+  const roots = Array.from({ length: 8 }, (_, index) => `/workspace/root-${index}`);
+  const outcome = await resolveServerForWorkspaceRoots(
+    options({ workspaceRoots: roots, maxAncestorDepth: 0 }),
+    { probe, concurrency: 3 },
+  );
+  assert.equal(outcome.kind, "missing");
+  assert.ok(peak <= 3, `global probe concurrency was ${peak}`);
+
+  let overLimitProbeCalls = 0;
+  const overLimit = await resolveServerForWorkspaceRoots(
+    options({
+      workspaceRoots: Array.from({ length: 33 }, (_, index) => `/workspace/root-${index}`),
+    }),
+    {
+      probe: {
+        async probeFile(candidate) {
+          overLimitProbeCalls += 1;
+          return { candidate, status: "missing" };
+        },
+      },
+    },
+  );
+  assert.equal(overLimit.kind, "workspace-limit");
+  assert.equal(overLimitProbeCalls, 0);
+});
+
 test("bounded concurrency probes at most the requested batch size", async () => {
   let inFlight = 0;
   let peak = 0;
@@ -252,6 +375,10 @@ test("bounded concurrency probes at most the requested batch size", async () => 
   };
   await probeInBatches(candidates, probe, "darwin", 3);
   assert.ok(peak <= 3, `peak concurrency was ${peak}`);
+
+  peak = 0;
+  await probeInBatches(candidates, probe, "darwin", Number.NaN);
+  assert.ok(peak <= 1, `a non-finite concurrency setting is clamped safely (peak ${peak})`);
 });
 
 test("status descriptions are human readable", () => {

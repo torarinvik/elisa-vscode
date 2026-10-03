@@ -28,3 +28,42 @@ struct Size:
 
 struct InputEvent:
     kind: i32
+
+def make_event() -> Event:
+    return Event.Resize(1)
+
+struct Rect:
+    origin: Vec2
+    size: Size
+    på: Vec2
+
+def shadow_family(Event: i32) -> i32:
+    return Event.Resize(2)
+
+module Ui:
+    public:
+        enum Event:
+            None
+            Resize(size: i32)
+
+type UiEvent = Ui::Event
+
+def consume_ui(event: UiEvent) -> i32:
+    match event:
+        Ui::Event.None:
+            return 0
+        Ui::Event.Resize(size):
+            return size
+
+def make_ui_event() -> UiEvent:
+    return Ui::Event.Resize(1)
+
+type EventAlias = Event
+
+def make_alias_event() -> EventAlias:
+    return EventAlias.Resize(1)
+
+def consume_alias_event(event: EventAlias) -> i32:
+    match event:
+        EventAlias.Resize(size):
+            return size

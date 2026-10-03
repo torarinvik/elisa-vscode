@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fixtureText, hasScope, loadElisaGrammar, tokenAt, tokenizeFile } from "./helpers/grammar.mjs";
+import {
+  fixtureText,
+  hasScope,
+  loadElisaGrammar,
+  loadMarkdownGrammar,
+  tokenAt,
+  tokenizeFile,
+} from "./helpers/grammar.mjs";
 import config from "../out/config.js";
 import health from "../out/health.js";
 import discovery from "../out/serverDiscovery.js";
@@ -108,6 +115,25 @@ test("adversarial long lines tokenize in bounded time", async () => {
     assert.ok(elapsed < 10000, `tokenizing a ${line.length} character line took ${elapsed} ms`);
     assert.ok(tokens[0].length > 0 || line.length === 0);
   }
+});
+
+test("adversarial Markdown fences tokenize in bounded time", async () => {
+  const grammar = await loadMarkdownGrammar();
+  const text = [
+    `\`\`\`elisa${"x".repeat(50000)}`,
+    `\`\`\`${"`".repeat(20000)}elisa`,
+    "~~~elisa metadata",
+    ...Array.from({ length: 2000 }, (_, index) =>
+      index % 3 === 0 ? `def item_${index}() -> i64:` : `    return ${index}`,
+    ),
+    "~~~~",
+    "",
+  ].join("\n");
+  const started = Date.now();
+  const tokens = tokenizeFile(grammar, text);
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 10000, `tokenizing adversarial Markdown took ${elapsed} ms`);
+  assert.equal(tokens.length, text.split("\n").length);
 });
 
 test("an unterminated string recovers at the next quote", async () => {

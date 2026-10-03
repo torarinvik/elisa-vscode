@@ -133,9 +133,16 @@ const unpacked = installedRoots.map((entry) => ({
   grammar: existsSync(
     join(extensionsDir, entry, "syntaxes", "elisa.tmLanguage.json"),
   ),
+  markdownGrammar: existsSync(
+    join(extensionsDir, entry, "syntaxes", "markdown-elisa.tmLanguage.json"),
+  ),
 }));
 const incomplete = unpacked.filter(
-  (entry) => !entry.packageJson || !entry.bundle || !entry.grammar,
+  (entry) =>
+    !entry.packageJson ||
+    !entry.bundle ||
+    !entry.grammar ||
+    !entry.markdownGrammar,
 );
 if (unpacked.length === 0 || incomplete.length > 0) {
   console.error(`installed extension is incomplete: ${JSON.stringify(unpacked)}`);
@@ -143,5 +150,5 @@ if (unpacked.length === 0 || incomplete.length > 0) {
 }
 
 console.log(
-  `installed-VSIX smoke OK: ${expected} ${installed.find((line) => line.toLowerCase().startsWith(expected))} unpacked with bundle and grammar`,
+  `installed-VSIX smoke OK: ${expected} ${installed.find((line) => line.toLowerCase().startsWith(expected))} unpacked with Elisa and Markdown grammars`,
 );

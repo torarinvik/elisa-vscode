@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { resolveConfiguredPath } from "./serverDiscovery";
 
 export type DocumentOwnership =
   | { readonly kind: "folder"; readonly folder: string }
@@ -13,6 +14,29 @@ export interface DocumentIdentity {
 export interface FolderSettingValue {
   readonly folder: string;
   readonly value: string;
+  readonly valid?: boolean;
+  /**
+   * Base used when a relative setting belongs to this folder. Shared settings
+   * omit this and resolve against the common workspace base instead.
+   */
+  readonly baseDirectory?: string;
+}
+
+export interface WorkspaceServerContext {
+  readonly roots: string;
+  readonly paths: string;
+  readonly trusted: boolean;
+}
+
+export function workspaceServerContextChanged(
+  previous: WorkspaceServerContext,
+  next: WorkspaceServerContext,
+): boolean {
+  return (
+    previous.roots !== next.roots ||
+    previous.paths !== next.paths ||
+    previous.trusted !== next.trusted
+  );
 }
 
 function normalize(root: string): string {
@@ -58,6 +82,43 @@ export function distinctSettingValues(values: readonly FolderSettingValue[]): st
   return [...distinct];
 }
 
+export function settingValuesAreConsistent(values: readonly FolderSettingValue[]): boolean {
+  return (
+    values.every((entry) => entry.valid !== false) &&
+    distinctSettingValues(values).length <= 1
+  );
+}
+
+/**
+ * Resolve each folder's effective server path before deciding whether one
+ * shared server can honor all settings. Empty means automatic discovery.
+ */
+export function resolveServerPathValues(
+  values: readonly FolderSettingValue[],
+  sharedBaseDirectory: string,
+  homeDirectory: string,
+): FolderSettingValue[] {
+  return values.map((entry) => {
+    const configured = entry.value.trim();
+    return {
+      folder: entry.folder,
+      ...(entry.valid === undefined ? {} : { valid: entry.valid }),
+      value: configured
+        ? resolveConfiguredPath(
+            configured,
+            entry.baseDirectory ?? sharedBaseDirectory,
+            homeDirectory,
+          )
+        : "",
+    };
+  });
+}
+
+/** Stable in-memory comparison key; callers must not log this value. */
+export function folderValuesSignature(values: readonly FolderSettingValue[]): string {
+  return JSON.stringify(values.map(({ folder, value, valid }) => [folder, value, valid ?? true]));
+}
+
 export function describeSettingDivergence(
   settingName: string,
   values: readonly FolderSettingValue[],
@@ -69,6 +130,5 @@ export function describeSettingDivergence(
   if (distinct.length <= 1) {
     return undefined;
   }
-  const rendered = distinct.map((value) => (value.length > 0 ? value : "<empty>")).join(", ");
-  return `${settingName} differs across workspace folders (${rendered}); one shared server session uses the first folder's value`;
+  return `${settingName} differs across workspace folders; the shared language-server session cannot apply different values per folder`;
 }

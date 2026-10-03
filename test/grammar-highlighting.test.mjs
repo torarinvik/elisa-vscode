@@ -12,7 +12,9 @@ import {
 const grammar = await loadElisaGrammar();
 
 test("enum family declarations and variants receive exact lexical scopes", () => {
-  const tokens = tokenizeFile(grammar, fixtureText("enum-family.elisa"));
+  const fixture = fixtureText("enum-family.elisa");
+  const lines = fixture.split("\n");
+  const tokens = tokenizeFile(grammar, fixture);
 
   assert.ok(
     hasScope(tokenAt(tokens[0], "enum"), "storage.type.declaration"),
@@ -60,6 +62,26 @@ test("enum family declarations and variants receive exact lexical scopes", () =>
     hasScope(tokenAt(tokens[5], "InputEvent"), "entity.name.type"),
     "parent family is a type reference",
   );
+
+  const moduleLine = lines.findIndex((line) => line.trim() === "module Ui:");
+  assert.notEqual(moduleLine, -1, "fixture has the owning module declaration");
+  const moduleEnumLine = lines.findIndex(
+    (line, index) => index > moduleLine && line.trim() === "enum Event:",
+  );
+  assert.notEqual(moduleEnumLine, -1, "fixture has a module-owned enum declaration");
+  assert.ok(
+    hasScope(tokenAt(tokens[moduleEnumLine], "Event"), "entity.name.type.enum"),
+    "module-owned family declarations receive enum-type fallback scope",
+  );
+  for (const [line, variant] of [
+    [moduleEnumLine + 1, "None"],
+    [moduleEnumLine + 2, "Resize"],
+  ]) {
+    assert.ok(
+      hasScope(tokenAt(tokens[line], variant), "variable.other.enummember"),
+      `module-owned enum variant ${variant} has the lexical fallback scope`,
+    );
+  }
 });
 
 test("multiline payload lists and payload-free variants stay in enum context", () => {
@@ -93,7 +115,9 @@ test("multiline payload lists and payload-free variants stay in enum context", (
 });
 
 test("unrelated dotted PascalCase is never classified as an enum variant", () => {
-  const tokens = tokenizeFile(grammar, fixtureText("enum-family.elisa"));
+  const fixture = fixtureText("enum-family.elisa");
+  const lines = fixture.split("\n");
+  const tokens = tokenizeFile(grammar, fixture);
 
   assert.equal(
     hasScope(tokenAt(tokens[10], "None"), "variable.other.enummember"),
@@ -119,6 +143,34 @@ test("unrelated dotted PascalCase is never classified as an enum variant", () =>
     hasScope(tokenAt(tokens[17], "Method"), "variable.other.enummember"),
     false,
     "PascalCase method call is not an enum variant",
+  );
+  for (const sourceText of [
+    "Ui::Event.None:",
+    "Ui::Event.Resize(size):",
+    "return Ui::Event.Resize(1)",
+  ]) {
+    const line = lines.findIndex((candidate) => candidate.includes(sourceText));
+    assert.notEqual(line, -1, `fixture includes ${sourceText}`);
+    assert.equal(
+      hasScope(tokenAt(tokens[line], "Event"), "variable.other.enummember"),
+      false,
+      "a module-qualified family is not guessed to be an enum member",
+    );
+    const variant = sourceText.includes("None") ? "None" : "Resize";
+    assert.equal(
+      hasScope(tokenAt(tokens[line], variant), "variable.other.enummember"),
+      false,
+      "module-qualified variant uses require semantic resolution, not lexical guessing",
+    );
+  }
+  const shadowLine = lines.findIndex((line) =>
+    line.includes("return Event.Resize(2)"),
+  );
+  assert.notEqual(shadowLine, -1, "fixture includes a local shadow of the family");
+  assert.equal(
+    hasScope(tokenAt(tokens[shadowLine], "Resize"), "variable.other.enummember"),
+    false,
+    "a dotted use shadowed by a local is not guessed by the lexical layer",
   );
 });
 
@@ -182,6 +234,20 @@ test("function, parameter, and type roles are distinguished", () => {
     hasScope(tokenAt(tokens[8], "i32"), "storage.type.primitive"),
     "primitive return type keeps its primitive scope",
   );
+});
+
+test("user-defined types in struct fields keep type-reference scopes", () => {
+  const tokens = tokenizeFile(grammar, fixtureText("enum-family.elisa"));
+  for (const [line, name] of [
+    [35, "Vec2"],
+    [36, "Size"],
+    [37, "Vec2"],
+  ]) {
+    assert.ok(
+      hasScope(tokenAt(tokens[line], name), "entity.name.type"),
+      `${name} in struct-field annotation line ${line + 1} is a type reference`,
+    );
+  }
 });
 
 test("comments do not receive symbol scopes", () => {

@@ -34,6 +34,18 @@ export const messages = {
     workspaceTarget: "this workspace's settings",
     userTarget: "your user settings",
   },
+  trust: {
+    workspacePathIgnored:
+      "A server path from workspace settings is ignored until this workspace is trusted; user settings and ELISA_LSP remain available.",
+    workspaceTraceIgnored:
+      "Protocol tracing from workspace settings is ignored until this workspace is trusted.",
+  },
+  configuration: {
+    workspaceTraceDiverged:
+      "Protocol tracing differs across workspace folders; tracing is disabled for safety.",
+    workspaceTraceInvalid:
+      "Protocol tracing has an invalid workspace-folder setting; tracing is disabled for safety.",
+  },
   explain: {
     text: "Elisa highlighting has two layers: TextMate lexical scopes (always available) and semantic tokens (available once the language server is ready).",
     guideAction: "Open Highlighting Guide",
@@ -49,6 +61,11 @@ export const messages = {
     discoveryFailed: "Language server discovery failed",
     invalidSetting: (setting: string): string =>
       `${setting} points to a unusable language server`,
+    workspacePathConflict:
+      "Workspace folders do not resolve to one shared Elisa language-server executable",
+    workspacePathConflictDetail:
+      "The extension currently runs one shared server session, so it will not start with invalid or conflicting per-folder executables. Set the same valid elisa.languageServer.path in every folder, or remove the folder-specific overrides.",
+    workspaceLimit: "Elisa language support cannot start with this many workspace folders",
     missingServer: "No Elisa language server was found",
     missingServerDetail: "Build Elisa-LSP or configure elisa.languageServer.path",
     spawnFailed: "Language server failed to spawn",

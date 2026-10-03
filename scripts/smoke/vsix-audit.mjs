@@ -10,6 +10,7 @@ const required = [
   "dist/extension.js",
   "language-configuration.json",
   "syntaxes/elisa.tmLanguage.json",
+  "syntaxes/markdown-elisa.tmLanguage.json",
   "README.md",
   "LICENSE",
 ];

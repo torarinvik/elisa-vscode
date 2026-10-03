@@ -4,6 +4,10 @@ Correctness-first language support for the Elisa programming language: immediate
 highlighting, then compiler-backed semantic classification through the Elisa language
 server.
 
+Elisa code in top-level Markdown fences also receives lexical highlighting. Embedded
+Markdown code currently has no compiler-backed diagnostics or language-server features;
+the server only analyzes standalone Elisa documents.
+
 ## Install and set up
 
 - [Setting up the extension](docs/setting-up.md) — install, configure the server, and
@@ -41,6 +45,9 @@ Prerequisites: Node 18+, npm, and `git`. The Elisa compiler and the sibling
 npm install
 npm run compile   # typescript check + esbuild bundle to dist/extension.js
 npm test          # real-grammar, discovery, lifecycle, config, and health tests
+npm run test:headless # strict no-UI gate; requires a fresh sibling Elisa-LSP build
+npm run test:semantic    # requires a fresh sibling Elisa-LSP build; stale builds fail
+npm run test:integration # isolated VSIX host + its actual Markdown grammar
 npm run watch     # shared watch pipeline for tsc and esbuild
 npm run package   # compile + vsce package
 ```
@@ -53,7 +60,7 @@ checks.
 
 ```text
 src/        extension host code (composition, discovery, session, health, commands)
-syntaxes/   TextMate grammar
+syntaxes/   Elisa TextMate grammar and Markdown fence injection
 docs/       user, contributor, and architecture documentation
 test/       node:test suites plus highlighting fixtures
 scripts/    unified build/watch pipeline

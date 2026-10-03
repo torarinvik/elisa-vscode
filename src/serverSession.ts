@@ -14,6 +14,8 @@ export type SessionState =
 export type FailureKind =
   | "discovery"
   | "invalid-configuration"
+  | "workspace-configuration-conflict"
+  | "workspace-limit"
   | "missing-server"
   | "spawn"
   | "initialization"
@@ -202,6 +204,29 @@ export class ServerSession {
         "invalid-configuration",
         messages.session.invalidSetting(outcome.setting),
         `${outcome.candidate.path} (${outcome.status}${outcome.detail ? `: ${outcome.detail}` : ""})`,
+      );
+      return;
+    }
+
+    if (outcome.kind === "configuration-conflict") {
+      this.fail(
+        "workspace-configuration-conflict",
+        messages.session.workspacePathConflict,
+        outcome.detail,
+      );
+      return;
+    }
+
+    if (outcome.kind === "workspace-limit") {
+      this.fail("workspace-limit", messages.session.workspaceLimit, outcome.detail);
+      return;
+    }
+
+    if (outcome.kind === "invalid-setting") {
+      this.fail(
+        "invalid-configuration",
+        messages.session.invalidSetting(outcome.setting),
+        outcome.detail,
       );
       return;
     }

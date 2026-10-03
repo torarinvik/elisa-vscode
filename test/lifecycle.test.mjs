@@ -130,11 +130,38 @@ test("an unusable explicit setting fails with invalid-configuration", async () =
   assert.equal(failures[0].kind, "invalid-configuration");
 });
 
+test("an invalid explicit setting is not treated as automatic discovery", async () => {
+  const { session, failures, connections } = harness({
+    discovery: {
+      kind: "invalid-setting",
+      setting: "elisa.languageServer.path",
+      detail: "contains a NUL character and was ignored",
+    },
+  });
+  await session.start();
+  assert.equal(session.state, "failed");
+  assert.equal(failures[0].kind, "invalid-configuration");
+  assert.equal(connections.length, 0);
+});
+
 test("a missing server fails with missing-server and stays lexical-only", async () => {
   const { session, failures } = harness({ discovery: { kind: "missing", probes: [] } });
   await session.start();
   assert.equal(session.state, "failed");
   assert.equal(failures[0].kind, "missing-server");
+});
+
+test("a shared session refuses conflicting workspace server configurations", async () => {
+  const { session, failures, connections } = harness({
+    discovery: {
+      kind: "configuration-conflict",
+      detail: "Configure the same server path in every folder.",
+    },
+  });
+  await session.start();
+  assert.equal(session.state, "failed");
+  assert.equal(failures[0].kind, "workspace-configuration-conflict");
+  assert.equal(connections.length, 0);
 });
 
 test("spawn failure and initialization failure are distinguished", async () => {

@@ -34,36 +34,52 @@ session disposal share one stop path; races cannot orphan processes.
 
 ## ADR 3 — Discovery precedence, relative paths, and trust
 
-**Decision.** Precedence is explicit setting, `ELISA_LSP`, nearby development build,
-then `PATH`. A bad explicit value is an error, never a silent fallback. Relative paths
+**Decision.** Precedence is an allowed explicit setting, `ELISA_LSP`, nearby development
+build, then `PATH`. A bad explicit value is an error, never a silent fallback. Relative paths
 resolve against the first workspace folder; `~` expands to the home directory. Nearby
-builds are skipped in untrusted workspaces and on unsupported hosts.
+builds are skipped in untrusted workspaces and on unsupported hosts. While untrusted,
+workspace- and folder-level overrides of `elisa.languageServer.path` are ignored; a
+user-level setting and the extension-host `ELISA_LSP` remain explicit user configuration.
+The configuration command writes to user settings while untrusted.
 
 **Alternatives.** Silently fall through to PATH on a bad setting; treat nearby builds as
 trusted tools; support environment-variable interpolation inside the setting.
 
 **Consequences.** Failure messages stay actionable. Untrusted repositories cannot select
-a local binary automatically.
+a local binary automatically or inject a workspace-scoped executable path. Trusting the
+workspace restores workspace configuration and nearby development-build discovery.
 
 **Revisit when.** The product ships managed server artifacts with signed provenance.
 
-## ADR 4 — One session per workspace for now
+## ADR 4 — One guarded session per workspace for now
 
 **Decision.** The extension runs a single language server session for all workspace
-folders and documents. Multi-root isolation is not advertised.
+folders and documents. Per-folder server isolation is not advertised. Before spawning,
+the extension resolves trusted effective server-path settings for each folder and refuses
+to start if any folder has an invalid or different executable context. Shared/workspace
+relative paths use the first workspace root; trusted folder-scoped relative paths resolve
+against their own folder. When tracing settings differ, tracing is forced off for the
+shared process. Adding or removing workspace folders restarts the session so the LSP
+receives the current root set in `initialize`; the current server does not advertise
+dynamic workspace-folder changes. If there is no explicit executable override, automatic
+discovery runs independently for each root and shares only when every root resolves to
+the same executable. Discovery is bounded to four concurrent filesystem probes and the
+32-root limit enforced by the current LSP.
 
 **Alternatives.** One process per folder immediately; one process per document (never
 acceptable).
 
-**Consequences.** Startup stays simple and measured; conflicting roots can share
-semantics until routing exists. The compatibility page documents the limitation.
-Ownership is explicit: nested folders belong to the innermost containing root for future
-routing, a removed folder releases its documents to the single session, a file moved
-between roots keeps its open buffer and is re-localized after the move, untitled
-documents are owned by the session without a root, files outside every root are owned by
-the session but cannot use project context, and two roots referencing the same physical
-dependency share the session's analysis rather than duplicating it. None of these cases
-change the executable without an explicit settings change.
+**Consequences.** Startup stays simple and measured without silently using one folder's
+configured or nearby executable for another folder. Conflicting executable settings leave the extension in a
+visible failed/lexical-only state until settings are made compatible; this is safer than
+cross-project analysis with the wrong compiler. A root-set change incurs one deliberate
+restart. Ownership remains explicit: nested folders belong to the innermost containing
+root for future routing, a removed folder releases its documents to the shared session,
+a file moved between roots keeps its open buffer, untitled documents are owned by the
+session without a root, files outside every root are owned by the session but cannot use
+project context, and two roots referencing the same physical dependency share analysis
+rather than duplicate it. These ownership rules do not claim per-folder semantic
+isolation.
 
 **Revisit when.** The server supports the required workspace model and many-root
 measurements exist.
@@ -228,3 +244,53 @@ remain visible in the health report as absent capabilities.
 
 **Revisit when.** A formatter contract and edit transaction model exist and pass
 idempotence plus parse-preservation tests.
+
+## ADR 16 — Compiler-owned project and target resolution
+
+**Decision.** Elisa project identity and effective target configuration must come from the
+compiler's `ProjectSystem`, not a second parser in the VS Code extension or an inferred
+workspace-folder convention. The authoritative root is `project.json`; compiler
+`manifest.json` files describe dependency/module metadata and must not be mistaken for a
+root project configuration. Once the LSP integrates the resolver, it must preserve the
+compiler's project-file search and target-selection defaults, expose the selected context,
+and key semantic caches by the resolved project/toolchain identity. Until then, workspace
+roots are routing metadata only: no project-aware import/target semantics or per-root
+semantic isolation is claimed. Untitled and unmatched documents remain explicitly
+standalone.
+
+**Alternatives.** Parse `project.json` independently in TypeScript; treat every workspace
+folder as an isolated compiler project; accept any `manifest.json`; silently use the first
+root or target.
+
+**Consequences.** Client and compiler cannot drift on target defaults, dependency paths, or
+project settings. Project-aware semantics remain unavailable until the server integration
+and conflicting-context tests exist; that is an intentional correctness boundary, not a
+reason to guess. A future shared server context is allowed only when resolved compiler
+and target identities prove it safe.
+
+**Revisit when.** The LSP exposes the compiler resolver through a bounded API and tests
+cover nested roots, multiple targets, imports, overlays, and conflicting projects.
+
+## ADR 17 — Alias identity is resolved through bounded compiler metadata
+
+**Decision.** Enum-member semantic classification may follow a type alias only when the
+compiler frontend records the alias relationship in the LSP-facing semantic table. The
+adapter follows a bounded chain of exact alias names and rejects empty targets, self-cycles,
+and chains that exceed the table size. It never infers an enum from capitalization or from
+the fact that an arbitrary dotted member begins with an uppercase letter. A non-bare or
+otherwise unmodeled alias target degrades to an ordinary member classification.
+
+**Alternatives.** Reuse the flat symbol index, guess from alias spelling, scan every enum
+for a matching variant, or duplicate the compiler's type resolver in the LSP.
+
+**Consequences.** Direct aliases such as `type EventAlias = Event` preserve the enum-family
+and variant distinction in constructors and patterns without changing lexical fallback
+behavior. Alias cycles and incomplete metadata fail closed and cannot hang the semantic
+token provider. Module-qualified alias targets and cross-project alias identity remain
+blocked until the compiler exposes module-qualified target identity and the LSP passes it
+through the occurrence contract; the current implementation does not pretend those cases
+are exact.
+
+**Revisit when.** The compiler exposes a stable symbol identity for aliases, including the
+owning module/project and resolved target, so the adapter can replace name-chain metadata
+with identity references and cover same-named aliases across modules.

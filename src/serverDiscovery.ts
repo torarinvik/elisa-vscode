@@ -47,6 +47,9 @@ export interface ServerResolution {
 export type DiscoveryOutcome =
   | { readonly kind: "resolved"; readonly server: ServerResolution }
   | { readonly kind: "missing"; readonly probes: readonly CandidateProbe[] }
+  | { readonly kind: "configuration-conflict"; readonly detail: string }
+  | { readonly kind: "workspace-limit"; readonly detail: string }
+  | { readonly kind: "invalid-setting"; readonly setting: string; readonly detail: string }
   | {
       readonly kind: "invalid-explicit";
       readonly setting: string;
@@ -65,6 +68,8 @@ export interface ResolveDependencies {
 }
 
 const supportedPlatforms: readonly NodeJS.Platform[] = ["darwin", "linux"];
+export const MAX_WORKSPACE_ROOTS = 32;
+const MAX_DISCOVERY_CONCURRENCY = 4;
 
 export function executableName(platform: NodeJS.Platform): string {
   return platform === "win32" ? "elisa-lsp.exe" : "elisa-lsp";
@@ -205,7 +210,8 @@ export function automaticCandidates(
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(Math.max(value, minimum), maximum);
+  const finiteValue = Number.isFinite(value) ? value : minimum;
+  return Math.min(Math.max(finiteValue, minimum), maximum);
 }
 
 export async function probeInBatches(
@@ -246,12 +252,10 @@ export async function resolveServer(
         detail: result.detail,
       };
     }
-    if (candidate.source === "setting") {
-      return {
-        kind: "resolved",
-        server: { executable: candidate.path, source: candidate.source, origin: candidate.origin },
-      };
-    }
+    return {
+      kind: "resolved",
+      server: { executable: candidate.path, source: candidate.source, origin: candidate.origin },
+    };
   }
 
   const automatic = automaticCandidates(candidates);
@@ -273,6 +277,156 @@ export async function resolveServer(
     };
   }
   return { kind: "missing", probes };
+}
+
+interface ProbeResult {
+  readonly status: CandidateStatus;
+  readonly detail?: string;
+}
+
+/** Deduplicates identical path probes and enforces one global async-I/O limit. */
+class BoundedCachingProbe implements FileSystemProbe {
+  private active = 0;
+  private readonly pending: Array<() => void> = [];
+  private readonly cache = new Map<string, Promise<ProbeResult>>();
+
+  constructor(
+    private readonly delegate: FileSystemProbe,
+    private readonly limit: number,
+  ) {}
+
+  probeFile(
+    candidate: DiscoveryCandidate,
+    platform: NodeJS.Platform,
+  ): Promise<CandidateProbe> {
+    const key = `${platform}\0${candidate.path}`;
+    let result = this.cache.get(key);
+    if (!result) {
+      result = this.enqueue(candidate, platform);
+      this.cache.set(key, result);
+    }
+    return result.then((probeResult) => ({ candidate, ...probeResult }));
+  }
+
+  private enqueue(
+    candidate: DiscoveryCandidate,
+    platform: NodeJS.Platform,
+  ): Promise<ProbeResult> {
+    return new Promise((resolveResult, rejectResult) => {
+      const start = (): void => {
+        this.active += 1;
+        const release = (): void => {
+          this.active -= 1;
+          this.pending.shift()?.();
+        };
+        void Promise.resolve()
+          .then(() => this.delegate.probeFile(candidate, platform))
+          .then(
+            ({ status, detail }) => {
+              resolveResult({ status, detail });
+              release();
+            },
+            (error: unknown) => {
+              rejectResult(error);
+              release();
+            },
+          );
+      };
+      if (this.active < this.limit) {
+        start();
+      } else {
+        this.pending.push(start);
+      }
+    });
+  }
+}
+
+async function mapConcurrent<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  operation: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.min(values.length, concurrency) },
+    async () => {
+      for (;;) {
+        const index = next;
+        next += 1;
+        if (index >= values.length) {
+          return;
+        }
+        results[index] = await operation(values[index]);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Resolve multi-root automatic discovery independently for each root. Sharing
+ * one process is safe only when every root selects the same executable. An
+ * explicit setting or ELISA_LSP is already a shared override, so it follows
+ * the normal precedence path without per-root probing.
+ */
+export async function resolveServerForWorkspaceRoots(
+  options: DiscoveryOptions,
+  dependencies: ResolveDependencies,
+): Promise<DiscoveryOutcome> {
+  if (options.workspaceRoots.length > MAX_WORKSPACE_ROOTS) {
+    return {
+      kind: "workspace-limit",
+      detail: `Elisa-LSP supports at most ${MAX_WORKSPACE_ROOTS} workspace folders in one session. Remove folders to continue.`,
+    };
+  }
+  if (
+    options.workspaceRoots.length <= 1 ||
+    options.configuredPath.trim() !== "" ||
+    options.environmentPath.trim() !== ""
+  ) {
+    return resolveServer(options, dependencies);
+  }
+
+  const concurrency = clamp(
+    dependencies.concurrency ?? 4,
+    1,
+    MAX_DISCOVERY_CONCURRENCY,
+  );
+  const probe = new BoundedCachingProbe(dependencies.probe, concurrency);
+  const outcomes = await mapConcurrent(
+    options.workspaceRoots,
+    concurrency,
+    (root) =>
+      resolveServer(
+        { ...options, workspaceRoots: [root] },
+        { probe, concurrency },
+      ),
+  );
+
+  if (outcomes.every((outcome) => outcome.kind === "missing")) {
+    // Preserve the regular aggregate probe report for setup/health diagnostics.
+    return resolveServer(options, { probe, concurrency });
+  }
+
+  const first = outcomes[0];
+  if (
+    first?.kind === "resolved" &&
+    outcomes.every(
+      (outcome) =>
+        outcome.kind === "resolved" &&
+        outcome.server.executable === first.server.executable,
+    )
+  ) {
+    return first;
+  }
+
+  return {
+    kind: "configuration-conflict",
+    detail:
+      "Automatic discovery resolves different server contexts for these workspace folders. Set elisa.languageServer.path to the same executable for all folders, or remove differing nearby builds.",
+  };
 }
 
 export function discoveryCacheKey(options: DiscoveryOptions): string {

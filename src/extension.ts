@@ -18,7 +18,9 @@ import {
 } from "./config";
 import { commandIds } from "./commandIds";
 import { registerCommands } from "./commands";
-import { compareLegends, describeLegendComparison } from "./compatibility";
+import {
+  semanticLegendCompatibilityIssue,
+} from "./compatibility";
 import { messages } from "./messages";
 import { formatHealthReport, type HealthSnapshot } from "./health";
 import {
@@ -26,7 +28,7 @@ import {
   NodeFileProbe,
   describeStatus,
   discoveryCacheKey,
-  resolveServer,
+  resolveServerForWorkspaceRoots,
   type DiscoveryCandidate,
   type DiscoveryOptions,
   type DiscoveryOutcome,
@@ -40,7 +42,16 @@ import {
   type SessionFailure,
   type SessionState,
 } from "./serverSession";
-import { describeSettingDivergence, type FolderSettingValue } from "./workspaceSessions";
+import {
+  describeSettingDivergence,
+  distinctSettingValues,
+  folderValuesSignature,
+  resolveServerPathValues,
+  settingValuesAreConsistent,
+  workspaceServerContextChanged,
+  type FolderSettingValue,
+} from "./workspaceSessions";
+import { selectTrustedSettingValue } from "./trust";
 
 const languageSelector = [
   { scheme: "file", language: "elisa" },
@@ -77,6 +88,11 @@ interface Runtime {
   client: LanguageClient | undefined;
   lastNotifiedFailure: string | undefined;
   languageRegistered: boolean;
+  untrustedWorkspacePathWarningShown: boolean;
+  workspaceRootSignature: string;
+  serverPathSignature: string;
+  traceSettingsSignature: string;
+  trustedWorkspace: boolean;
 }
 
 let runtime: Runtime | undefined;
@@ -86,14 +102,22 @@ function configurationScope(): vscode.ConfigurationScope | undefined {
 }
 
 function readSettings(): ParsedSettings {
-  const scope = configurationScope();
-  const serverConfiguration = vscode.workspace.getConfiguration(configurationSection, scope);
-  const traceConfiguration = vscode.workspace.getConfiguration("elisa.trace", scope);
+  const pathSelection = configuredSettingSelection(configurationSection, "path");
+  const traceSelection = configuredSettingSelection("elisa.trace", "server");
+  const traceValues = folderSettingValues("elisa.trace", "server");
+  const traceUnsafe = !settingValuesAreConsistent(traceValues);
   const parsed = parseSettings({
-    languageServerPath: serverConfiguration.get("path"),
-    trace: traceConfiguration.get("server"),
+    languageServerPath: pathSelection.value,
+    // Tracing is process-wide. If roots disagree, fail closed rather than
+    // allowing one folder's verbose setting to capture every folder's source.
+    trace: traceUnsafe ? "off" : traceSelection.value,
   });
   for (const diagnostic of parsed.diagnostics) {
+    // Invalid path values fail the session with an actionable error below;
+    // showing a second warning here would duplicate that notification.
+    if (diagnostic.key === "elisa.languageServer.path") {
+      continue;
+    }
     void vscode.window.showWarningMessage(
       messages.invalidSetting(diagnostic.key, diagnostic.message),
     );
@@ -101,28 +125,90 @@ function readSettings(): ParsedSettings {
   return parsed;
 }
 
+function configuredSettingSelection(
+  section: string,
+  key: string,
+): ReturnType<typeof selectTrustedSettingValue> {
+  const configuration = vscode.workspace.getConfiguration(section, configurationScope());
+  return selectTrustedSettingValue(
+    configuration.get(key),
+    configuration.inspect(key),
+    vscode.workspace.isTrusted,
+  );
+}
+
 function folderSettingValues(section: string, key: string): FolderSettingValue[] {
-  return (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
-    folder: folder.uri.fsPath,
-    value: String(vscode.workspace.getConfiguration(section, folder.uri).get(key) ?? ""),
-  }));
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const sharedBase = folders[0]?.uri.fsPath ?? runtime?.context.extensionPath ?? process.cwd();
+  return folders.map((folder) => {
+    const configuration = vscode.workspace.getConfiguration(section, folder.uri);
+    const inspected = configuration.inspect(key);
+    const selection = selectTrustedSettingValue(
+      configuration.get<unknown>(key),
+      inspected,
+      vscode.workspace.isTrusted,
+    );
+    const folderScoped =
+      vscode.workspace.isTrusted && inspected?.workspaceFolderValue !== undefined;
+    return {
+      folder: folder.uri.fsPath,
+      value: typeof selection.value === "string" ? selection.value : "",
+      valid: selection.value == null || typeof selection.value === "string",
+      ...(folderScoped ? { baseDirectory: folder.uri.fsPath } : {}),
+    };
+  });
+}
+
+function resolvedServerPathValues(): FolderSettingValue[] {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const sharedBase = folders[0]?.uri.fsPath ?? runtime?.context.extensionPath ?? process.cwd();
+  return resolveServerPathValues(
+    folderSettingValues(configurationSection, "path"),
+    sharedBase,
+    os.homedir(),
+  );
+}
+
+function workspaceRootSignature(): string {
+  return JSON.stringify((vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.toString()));
+}
+
+function traceSettingsWarning(values: readonly FolderSettingValue[]): string | undefined {
+  if (values.some((setting) => setting.valid === false)) {
+    return messages.configuration.workspaceTraceInvalid;
+  }
+  if (!settingValuesAreConsistent(values)) {
+    return messages.configuration.workspaceTraceDiverged;
+  }
+  return undefined;
 }
 
 function configurationWarnings(): string[] {
   const warnings: string[] = [];
+  if (configuredSettingSelection(configurationSection, "path").workspaceOverrideIgnored) {
+    warnings.push(messages.trust.workspacePathIgnored);
+  }
+  if (configuredSettingSelection("elisa.trace", "server").workspaceOverrideIgnored) {
+    warnings.push(messages.trust.workspaceTraceIgnored);
+  }
   const pathDivergence = describeSettingDivergence(
     "elisa.languageServer.path",
-    folderSettingValues(configurationSection, "path"),
+    resolvedServerPathValues(),
   );
   if (pathDivergence) {
     warnings.push(pathDivergence);
   }
+  const traceValues = folderSettingValues("elisa.trace", "server");
   const traceDivergence = describeSettingDivergence(
     "elisa.trace.server",
-    folderSettingValues("elisa.trace", "server"),
+    traceValues,
   );
   if (traceDivergence) {
-    warnings.push(traceDivergence);
+    warnings.push(`${traceDivergence}; tracing is disabled for safety`);
+  }
+  const traceWarning = traceSettingsWarning(traceValues);
+  if (traceWarning && !traceDivergence) {
+    warnings.push(traceWarning);
   }
   return warnings;
 }
@@ -148,13 +234,30 @@ async function discover(settings: ParsedSettings): Promise<DiscoveryOutcome> {
   if (!state) {
     return { kind: "missing", probes: [] };
   }
+  const invalidPath = state.settings.diagnostics.find(
+    (diagnostic) => diagnostic.key === "elisa.languageServer.path",
+  );
+  if (invalidPath) {
+    return {
+      kind: "invalid-setting",
+      setting: "elisa.languageServer.path",
+      detail: invalidPath.message,
+    };
+  }
+  const serverPaths = resolvedServerPathValues();
+  if (!settingValuesAreConsistent(serverPaths)) {
+    return {
+      kind: "configuration-conflict",
+      detail: messages.session.workspacePathConflictDetail,
+    };
+  }
   const options = discoveryOptions(settings);
   const key = discoveryCacheKey(options);
   const cached = state.cache.get(key);
   if (cached) {
     return cached;
   }
-  const outcome = await resolveServer(options, {
+  const outcome = await resolveServerForWorkspaceRoots(options, {
     probe: new NodeFileProbe(),
     concurrency: 4,
   });
@@ -170,31 +273,6 @@ function classifyConnectError(error: unknown): "spawn" | "initialization" {
     return "spawn";
   }
   return "initialization";
-}
-
-function declaredLegend(context: vscode.ExtensionContext): string[] {
-  const contributes = (
-    context.extension.packageJSON as {
-      contributes?: { semanticTokenTypes?: ReadonlyArray<{ id?: string }> };
-    }
-  ).contributes;
-  return (contributes?.semanticTokenTypes ?? [])
-    .map((type) => type.id)
-    .filter((id): id is string => typeof id === "string" && id.length > 0);
-}
-
-function serverLegend(result: unknown): string[] | undefined {
-  const legend = (
-    result as {
-      capabilities?: {
-        semanticTokensProvider?: { legend?: { tokenTypes?: unknown } };
-      };
-    }
-  )?.capabilities?.semanticTokensProvider?.legend?.tokenTypes;
-  if (!Array.isArray(legend)) {
-    return undefined;
-  }
-  return legend.filter((entry): entry is string => typeof entry === "string");
 }
 
 function traceValue(level: TraceLevel): Trace {
@@ -263,11 +341,10 @@ function createConnection(
     .then(() => {
       state.client = client;
       void client.setTrace(traceValue(state.settings.trace));
-      const comparison = compareLegends(
-        declaredLegend(state.context),
-        serverLegend(client.initializeResult),
+      const degradedReason = semanticLegendCompatibilityIssue(
+        state.context.extension.packageJSON,
+        client.initializeResult,
       );
-      const degradedReason = comparison ? describeLegendComparison(comparison) : undefined;
       if (degradedReason) {
         state.output.appendLine(`[compatibility] semantic token legend mismatch: ${degradedReason}`);
       }
@@ -397,13 +474,22 @@ async function openExtensionDocument(
 }
 
 async function promptMissingServer(state: Runtime, failure: SessionFailure): Promise<void> {
-  const key = `${failure.kind}:${failure.detail ?? ""}`;
+  const ignoredPathWarning =
+    failure.kind === "missing-server" &&
+    configuredSettingSelection(configurationSection, "path").workspaceOverrideIgnored;
+  const detail = ignoredPathWarning
+    ? [failure.detail, messages.trust.workspacePathIgnored].filter(Boolean).join("; ")
+    : failure.detail;
+  if (ignoredPathWarning) {
+    state.untrustedWorkspacePathWarningShown = true;
+  }
+  const key = `${failure.kind}:${detail ?? ""}`;
   if (state.lastNotifiedFailure === key) {
     return;
   }
   state.lastNotifiedFailure = key;
   const action = await vscode.window.showErrorMessage(
-    `${failure.message}. ${failure.detail ?? ""}`.trim(),
+    `${failure.message}. ${detail ?? ""}`.trim(),
     messages.setupActions.openSetting,
     messages.setupActions.selectExecutable,
     messages.setupActions.setupGuide,
@@ -427,6 +513,27 @@ async function promptMissingServer(state: Runtime, failure: SessionFailure): Pro
       break;
     default:
       break;
+  }
+}
+
+async function promptWorkspacePathConflict(
+  state: Runtime,
+  failure: SessionFailure,
+): Promise<void> {
+  const key = `${failure.kind}:${failure.detail ?? ""}`;
+  if (state.lastNotifiedFailure === key) {
+    return;
+  }
+  state.lastNotifiedFailure = key;
+  const action = await vscode.window.showErrorMessage(
+    `${failure.message}. ${failure.detail ?? ""}`.trim(),
+    messages.setupActions.openSetting,
+  );
+  if (action === messages.setupActions.openSetting) {
+    await vscode.commands.executeCommand(
+      "workbench.action.openSettings",
+      "elisa.languageServer.path",
+    );
   }
 }
 
@@ -454,10 +561,11 @@ async function configureServer(state: Runtime): Promise<void> {
     return;
   }
   const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
-  const target = hasWorkspace
+  const useWorkspaceTarget = hasWorkspace && vscode.workspace.isTrusted;
+  const target = useWorkspaceTarget
     ? vscode.ConfigurationTarget.Workspace
     : vscode.ConfigurationTarget.Global;
-  const targetLabel = hasWorkspace
+  const targetLabel = useWorkspaceTarget
     ? messages.configure.workspaceTarget
     : messages.configure.userTarget;
   const confirmed = await vscode.window.showInformationMessage(
@@ -509,6 +617,14 @@ async function reportRestartOutcome(state: Runtime): Promise<void> {
     return;
   }
   const failure = state.session.lastFailure;
+  if (failure?.kind === "workspace-configuration-conflict") {
+    state.output.appendLine(`[restart] blocked: ${failure.message}`);
+    return;
+  }
+  if (failure?.kind === "workspace-limit") {
+    state.output.appendLine(`[restart] blocked: ${failure.message}`);
+    return;
+  }
   const message = failure
     ? `${failure.message}${failure.detail ? `: ${failure.detail}` : ""}`
     : `state ${sessionState}`;
@@ -562,6 +678,9 @@ async function verifySupport(state: Runtime): Promise<void> {
     "            total <- total + x",
     "            acc <- acc + 1",
     "    return total + r",
+    "",
+    "def default_value() -> Verify:",
+    "    return Verify.Ok",
   ].join("\n");
   const document = await vscode.workspace.openTextDocument({
     language: "elisa",
@@ -628,6 +747,11 @@ export function activate(context: vscode.ExtensionContext): void {
     client: undefined,
     lastNotifiedFailure: undefined,
     languageRegistered: false,
+    untrustedWorkspacePathWarningShown: false,
+    workspaceRootSignature: workspaceRootSignature(),
+    serverPathSignature: folderValuesSignature(resolvedServerPathValues()),
+    traceSettingsSignature: folderValuesSignature(folderSettingValues("elisa.trace", "server")),
+    trustedWorkspace: vscode.workspace.isTrusted,
     services: {
       configure: async () => configureServer(state),
       health: async () => showHealth(state),
@@ -642,23 +766,42 @@ export function activate(context: vscode.ExtensionContext): void {
     },
     onStateChange: (sessionState) => {
       updateStatus(state, sessionState);
+      if (
+        (sessionState === "ready" || sessionState === "degraded") &&
+        !state.untrustedWorkspacePathWarningShown &&
+        configuredSettingSelection(configurationSection, "path").workspaceOverrideIgnored
+      ) {
+        state.untrustedWorkspacePathWarningShown = true;
+        void vscode.window.showWarningMessage(messages.trust.workspacePathIgnored);
+      }
       if (sessionState === "ready") {
         state.lastNotifiedFailure = undefined;
       }
     },
     onFailure: (failure) => {
       output.appendLine(`[failure:${failure.kind}] ${failure.message}${failure.detail ? `: ${failure.detail}` : ""}`);
-      if (failure.kind === "missing-server" || failure.kind === "invalid-configuration") {
+      if (failure.kind === "workspace-configuration-conflict") {
+        void promptWorkspacePathConflict(state, failure);
+      } else if (failure.kind === "workspace-limit") {
+        void vscode.window.showErrorMessage(
+          `${failure.message}. ${failure.detail ?? ""}`.trim(),
+        );
+      } else if (failure.kind === "missing-server" || failure.kind === "invalid-configuration") {
         void promptMissingServer(state, failure);
       }
     },
   });
   state.session = session;
   updateStatus(state, session.state);
+  const initialTraceWarning = traceSettingsWarning(folderSettingValues("elisa.trace", "server"));
+  if (initialTraceWarning) {
+    output.appendLine(`[config] ${initialTraceWarning}`);
+  }
 
   registerCommands(context, {
     restartLanguageServer: async () => {
       output.appendLine("[command] restarting language server");
+      cache.clear();
       await session.restart();
       await reportRestartOutcome(state);
     },
@@ -673,37 +816,75 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
+  const scheduleConfigurationRefresh = (reason: string): void => {
+    if (debounce) {
+      clearTimeout(debounce);
+    }
+    debounce = setTimeout(() => {
+      debounce = undefined;
+      const next = readSettings();
+      const previous = state.settings;
+      const change = classifySettingsChange(previous, next);
+      const nextRootSignature = workspaceRootSignature();
+      const nextPathSignature = folderValuesSignature(resolvedServerPathValues());
+      const nextTraceValues = folderSettingValues("elisa.trace", "server");
+      const nextTraceSignature = folderValuesSignature(nextTraceValues);
+      const nextTrust = vscode.workspace.isTrusted;
+      const tracesChanged = nextTraceSignature !== state.traceSettingsSignature;
+      const serverContextChanged = workspaceServerContextChanged(
+        {
+          roots: state.workspaceRootSignature,
+          paths: state.serverPathSignature,
+          trusted: state.trustedWorkspace,
+        },
+        {
+          roots: nextRootSignature,
+          paths: nextPathSignature,
+          trusted: nextTrust,
+        },
+      );
+      state.settings = next;
+      state.workspaceRootSignature = nextRootSignature;
+      state.serverPathSignature = nextPathSignature;
+      state.traceSettingsSignature = nextTraceSignature;
+      state.trustedWorkspace = nextTrust;
+
+      const nextTraceWarning = traceSettingsWarning(nextTraceValues);
+      if (tracesChanged && nextTraceWarning) {
+        output.appendLine(`[config] ${nextTraceWarning}`);
+      }
+      if (change === "session-restart" || serverContextChanged) {
+        cache.clear();
+        output.appendLine(`[config] ${reason}; restarting the language server`);
+        void session.restart().then(() => reportRestartOutcome(state));
+      } else if (change === "presentation") {
+        output.appendLine(`[config] trace level changed to ${next.trace}`);
+        applyTrace(state);
+        if (previous.trace === "off" && next.trace !== "off") {
+          offerTraceConsent(state);
+        }
+      }
+    }, 300);
+  };
+
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
+      const folders = vscode.workspace.workspaceFolders ?? [];
+      const affects = (section: string): boolean =>
+        event.affectsConfiguration(section) ||
+        folders.some((folder) => event.affectsConfiguration(section, folder.uri));
       if (
-        !event.affectsConfiguration(configurationSection) &&
-        !event.affectsConfiguration("elisa.trace.server")
+        !affects(configurationSection) &&
+        !affects("elisa.trace.server")
       ) {
         return;
       }
-      if (debounce) {
-        clearTimeout(debounce);
-      }
-      debounce = setTimeout(() => {
-        debounce = undefined;
-        const next = readSettings();
-        const previous = state.settings;
-        const change = classifySettingsChange(previous, next);
-        state.settings = next;
-        if (change === "session-restart") {
-          cache.clear();
-          output.appendLine(
-            "[config] elisa.languageServer.path changed; restarting the language server",
-          );
-          void session.restart().then(() => reportRestartOutcome(state));
-        } else if (change === "presentation") {
-          output.appendLine(`[config] trace level changed to ${next.trace}`);
-          applyTrace(state);
-          if (previous.trace === "off" && next.trace !== "off") {
-            offerTraceConsent(state);
-          }
-        }
-      }, 300);
+      scheduleConfigurationRefresh("Elisa settings changed");
+    }),
+  );
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      scheduleConfigurationRefresh("workspace folders changed");
     }),
   );
   context.subscriptions.push({
@@ -717,8 +898,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
-      cache.clear();
-      void session.restart();
+      scheduleConfigurationRefresh("workspace trust changed");
     }),
   );
 

@@ -10,8 +10,9 @@
 ## Execution and trust
 
 - The extension starts a native `elisa-lsp` process over stdio. That is code execution.
-- In an untrusted workspace, nearby development builds are not selected automatically.
-  Provide `elisa.languageServer.path` or `ELISA_LSP` to opt in explicitly.
+- In an untrusted workspace, nearby development builds and workspace/folder-level server
+  executable and trace overrides are not selected automatically. User-level
+  `elisa.languageServer.path` and `ELISA_LSP` remain available.
 - Source-controlled files are never executed to determine language support.
 - Commands use direct process execution with argument arrays; the extension never
   constructs shell command strings from workspace or source content.
@@ -35,7 +36,8 @@ excerpts, and private URLs. Copying or sharing is always an explicit user action
 Health reports include: extension version and build identifier, editor host type,
 platform, workspace count, trust state, server path source, lifecycle state, server
 identity, negotiated encoding, advertised capabilities, last failure category, and
-resource-limit state.
+resource-limit state. Multi-root configuration warnings identify the setting that
+differs without printing its values, which may contain private filesystem paths.
 
 ## Logging
 
@@ -43,7 +45,9 @@ Normal logs contain lifecycle events and actionable failures. The
 `elisa.trace.server` setting is `off` by default; enabling `messages` or `verbose`
 writes protocol traffic to the **Elisa Language Server Trace** channel, and `verbose`
 can include source code. Enabling a non-off level shows a warning, and users must
-disable it when finished. It is never enabled automatically.
+disable it when finished. It is never enabled automatically. In a multi-root workspace,
+tracing is forced off if folders resolve to different trace levels, preventing one
+folder's opt-in from capturing another folder's protocol/source data.
 
 ## Reporting a vulnerability
 
